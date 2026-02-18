@@ -2,11 +2,19 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, onSnapshot, collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth, useUserProfile } from "@/lib/hooks";
-import { placeBet, claimWinnings } from "@/lib/api";
-import { Market, Bet } from "@/lib/types";
+import { placeBet, claimWinnings, callFunction } from "@/lib/api";
+import { Market } from "@/lib/types";
+
+interface MarketBet {
+  id: string;
+  position: "yes" | "no";
+  amount: number;
+  status: string;
+  createdAt: { seconds: number } | null;
+}
 
 export default function MarketDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -15,7 +23,7 @@ export default function MarketDetailPage() {
   const { profile } = useUserProfile(user?.uid);
 
   const [market, setMarket] = useState<Market | null>(null);
-  const [bets, setBets] = useState<Bet[]>([]);
+  const [bets, setBets] = useState<MarketBet[]>([]);
   const [loading, setLoading] = useState(true);
   const [betAmount, setBetAmount] = useState("");
   const [betSide, setBetSide] = useState<"yes" | "no">("yes");
@@ -36,15 +44,7 @@ export default function MarketDetailPage() {
 
   useEffect(() => {
     if (!id) return;
-    const q = query(
-      collection(db, "bets"),
-      where("marketId", "==", id),
-      orderBy("createdAt", "desc"),
-      limit(20)
-    );
-    getDocs(q).then((snap) => {
-      setBets(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Bet)));
-    });
+    callFunction<MarketBet[]>("getMarketBets", { marketId: id }).then(setBets).catch(() => {});
   }, [id]);
 
   if (loading) return <div className="text-center py-16">Loading...</div>;

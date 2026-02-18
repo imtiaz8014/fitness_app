@@ -1,4 +1,4 @@
-import '../../../../services/firebase/firebase_user_service.dart';
+import '../../../../core/models/user_profile.dart';
 
 abstract class HomeRepository {
   Stream<UserProfile?> getUserStream();

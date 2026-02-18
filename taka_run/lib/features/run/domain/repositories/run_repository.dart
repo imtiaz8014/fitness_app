@@ -1,5 +1,5 @@
-import '../../../../services/location/location_service.dart';
-import '../../../../services/firebase/firebase_run_service.dart';
+import '../../../../core/models/gps_point.dart';
+import '../../../../core/models/run_result.dart';
 
 abstract class RunRepository {
   Future<bool> checkLocationPermission();

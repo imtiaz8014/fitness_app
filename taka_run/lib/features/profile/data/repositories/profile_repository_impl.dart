@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/models/user_profile.dart';
 import '../../../../services/firebase/firebase_user_service.dart';
 import '../../domain/repositories/profile_repository.dart';
 

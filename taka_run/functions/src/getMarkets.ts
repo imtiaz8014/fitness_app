@@ -8,7 +8,14 @@ interface GetMarketsData {
   limit?: number;
 }
 
-export const getMarkets = functions.https.onCall(async (data) => {
+export const getMarkets = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError(
+      "unauthenticated",
+      "You must be signed in."
+    );
+  }
+
   const input = (data || {}) as GetMarketsData;
 
   let q: admin.firestore.Query = db.collection("markets");
@@ -20,5 +27,10 @@ export const getMarkets = functions.https.onCall(async (data) => {
   q = q.orderBy("createdAt", "desc").limit(input.limit || 50);
 
   const snap = await q.get();
-  return snap.docs.map((doc) => ({id: doc.id, ...doc.data()}));
+  return snap.docs.map((doc) => {
+    const d = doc.data();
+    // Strip createdBy to avoid leaking UIDs
+    const {createdBy, ...rest} = d;
+    return {id: doc.id, ...rest};
+  });
 });

@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../services/firebase/firebase_user_service.dart';
+import '../../../../core/models/user_profile.dart';
 import '../../domain/repositories/profile_repository.dart';
 
 // Events

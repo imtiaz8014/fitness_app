@@ -1,3 +1,4 @@
+import '../../../../core/models/run_record.dart';
 import '../../../../services/firebase/firebase_run_service.dart';
 import '../../domain/repositories/history_repository.dart';
 

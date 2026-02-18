@@ -1,6 +1,6 @@
 import { httpsCallable } from "firebase/functions";
 import { functions } from "./firebase";
-import { Market, Bet } from "./types";
+import { Bet } from "./types";
 
 export async function callFunction<T>(name: string, data?: unknown): Promise<T> {
   const fn = httpsCallable(functions, name);
@@ -11,9 +11,8 @@ export async function callFunction<T>(name: string, data?: unknown): Promise<T> 
 // Market APIs
 export const getMarkets = (filters?: {
   status?: string;
-  category?: string;
   limit?: number;
-}) => callFunction<Market[]>("getMarkets", filters);
+}) => callFunction<{ id: string; title: string; description: string; category: string; status: string; totalYesAmount: number; totalNoAmount: number; totalVolume: number }[]>("getMarkets", filters);
 
 export const createMarket = (data: {
   title: string;
@@ -21,24 +20,24 @@ export const createMarket = (data: {
   category: string;
   imageUrl?: string;
   deadline: string;
-}) => callFunction<{ marketId: string; txHash: string }>("createMarket", data);
+}) => callFunction<{ marketId: string }>("createMarket", data);
 
 export const resolveMarket = (marketId: string, outcome: boolean) =>
-  callFunction<{ txHash: string }>("resolveMarket", { marketId, outcome });
+  callFunction<{ success: boolean }>("resolveMarket", { marketId, outcome });
 
 export const cancelMarket = (marketId: string) =>
-  callFunction<{ txHash: string }>("cancelMarket", { marketId });
+  callFunction<{ success: boolean }>("cancelMarket", { marketId });
 
 // Bet APIs
 export const placeBet = (marketId: string, isYes: boolean, amount: number) =>
-  callFunction<{ betId: string; txHash: string }>("placeBet", {
+  callFunction<{ betId: string }>("placeBet", {
     marketId,
     isYes,
     amount,
   });
 
 export const claimWinnings = (marketId: string) =>
-  callFunction<{ payout: number; txHash: string }>("claimWinnings", {
+  callFunction<{ payout: number }>("claimWinnings", {
     marketId,
   });
 
@@ -47,4 +46,4 @@ export const getUserBets = (marketId?: string) =>
 
 // Balance
 export const getBalance = () =>
-  callFunction<{ balance: string; address: string }>("getBalance");
+  callFunction<{ tkBalance: number; totalDistance: number; totalRuns: number; walletAddress: string | null }>("getBalance");

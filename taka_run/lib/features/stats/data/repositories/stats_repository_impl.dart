@@ -1,3 +1,5 @@
+import '../../../../core/models/run_record.dart';
+import '../../../../core/models/user_profile.dart';
 import '../../../../services/firebase/firebase_run_service.dart';
 import '../../../../services/firebase/firebase_user_service.dart';
 import '../../domain/repositories/stats_repository.dart';

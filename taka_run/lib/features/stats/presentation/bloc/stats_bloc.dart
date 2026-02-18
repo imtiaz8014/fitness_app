@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../services/firebase/firebase_run_service.dart';
+import '../../../../core/models/run_record.dart';
 import '../../domain/repositories/stats_repository.dart';
 
 // Events

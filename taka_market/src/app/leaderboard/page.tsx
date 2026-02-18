@@ -1,24 +1,34 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { UserProfile } from "@/lib/types";
+import { callFunction } from "@/lib/api";
+import { LeaderboardEntry } from "@/lib/types";
 
 type Tab = "balance" | "distance" | "runs";
 
+const TAB_TO_FIELD: Record<Tab, string> = {
+  balance: "tkBalance",
+  distance: "totalDistance",
+  runs: "totalRuns",
+};
+
 export default function LeaderboardPage() {
-  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [users, setUsers] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("balance");
 
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const field = tab === "balance" ? "tkBalance" : tab === "distance" ? "totalDistance" : "totalRuns";
-      const q = query(collection(db, "users"), orderBy(field, "desc"), limit(50));
-      const snap = await getDocs(q);
-      setUsers(snap.docs.map((d) => ({ uid: d.id, ...d.data() } as UserProfile)));
+      try {
+        const result = await callFunction<LeaderboardEntry[]>("getLeaderboard", {
+          field: TAB_TO_FIELD[tab],
+          limit: 50,
+        });
+        setUsers(result);
+      } catch {
+        setUsers([]);
+      }
       setLoading(false);
     }
     load();

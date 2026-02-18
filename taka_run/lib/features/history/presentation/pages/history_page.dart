@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../injection_container.dart';
-import '../../../../services/firebase/firebase_run_service.dart';
+import '../../../../core/models/run_record.dart';
 import '../bloc/history_bloc.dart';
 
 class HistoryPage extends StatelessWidget {

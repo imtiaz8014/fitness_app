@@ -1,5 +1,5 @@
-import '../../../../services/firebase/firebase_run_service.dart';
-import '../../../../services/firebase/firebase_user_service.dart';
+import '../../../../core/models/run_record.dart';
+import '../../../../core/models/user_profile.dart';
 
 abstract class StatsRepository {
   Future<List<RunRecord>> getAllRuns();

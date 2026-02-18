@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../../injection_container.dart';
-import '../../../../services/location/location_service.dart';
+import '../../../../core/models/gps_point.dart';
 import '../bloc/run_bloc.dart';
 
 class ActiveRunPage extends StatelessWidget {

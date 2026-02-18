@@ -12,3 +12,5 @@ export {placeBet} from "./placeBet";
 export {claimWinnings} from "./claimWinnings";
 export {getUserBets} from "./getUserBets";
 export {getMarkets} from "./getMarkets";
+export {getMarketBets} from "./getMarketBets";
+export {getLeaderboard} from "./getLeaderboard";

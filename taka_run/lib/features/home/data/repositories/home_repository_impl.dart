@@ -1,3 +1,4 @@
+import '../../../../core/models/user_profile.dart';
 import '../../../../services/firebase/firebase_user_service.dart';
 import '../../domain/repositories/home_repository.dart';
 

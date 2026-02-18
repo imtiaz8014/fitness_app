@@ -2,7 +2,7 @@ import { Timestamp } from "firebase/firestore";
 
 export interface Market {
   id: string;
-  onChainId: number;
+  onChainId?: number;
   title: string;
   description: string;
   category: string;
@@ -16,5 +16,5 @@ export interface Market {
   deadline: Timestamp;
   resolvedAt: Timestamp | null;
   createdAt: Timestamp;
-  txHash: string;
+  txHash?: string;
 }

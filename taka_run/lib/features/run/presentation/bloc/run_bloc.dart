@@ -4,8 +4,8 @@ import 'package:equatable/equatable.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../services/location/location_service.dart';
-import '../../../../services/firebase/firebase_run_service.dart';
+import '../../../../core/models/gps_point.dart';
+import '../../../../core/models/run_result.dart';
 import '../../domain/repositories/run_repository.dart';
 
 // Events

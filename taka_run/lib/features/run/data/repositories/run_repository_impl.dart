@@ -1,3 +1,5 @@
+import '../../../../core/models/gps_point.dart';
+import '../../../../core/models/run_result.dart';
 import '../../../../services/location/location_service.dart';
 import '../../../../services/firebase/firebase_run_service.dart';
 import '../../domain/repositories/run_repository.dart';
