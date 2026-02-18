@@ -21,9 +21,15 @@ export default function DashboardPage() {
       where("userId", "==", user.uid),
       orderBy("createdAt", "desc")
     );
-    const unsubscribe = onSnapshot(q, (snap) => {
-      setBets(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Bet)));
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => {
+        setBets(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Bet)));
+      },
+      () => {
+        setBets([]);
+      }
+    );
     return unsubscribe;
   }, [user]);
 

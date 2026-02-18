@@ -35,10 +35,17 @@ export default function BetsPage() {
       );
     }
 
-    const unsubscribe = onSnapshot(q, (snap) => {
-      setBets(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Bet)));
-      setLoading(false);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => {
+        setBets(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Bet)));
+        setLoading(false);
+      },
+      () => {
+        setBets([]);
+        setLoading(false);
+      }
+    );
     return unsubscribe;
   }, [user, filter]);
 

@@ -44,10 +44,17 @@ export default function RunsPage() {
       orderBy("createdAt", "desc"),
       limit(50)
     );
-    const unsubscribe = onSnapshot(q, (snap) => {
-      setRuns(snap.docs.map((d) => ({ id: d.id, ...d.data() } as RunRecord)));
-      setLoading(false);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => {
+        setRuns(snap.docs.map((d) => ({ id: d.id, ...d.data() } as RunRecord)));
+        setLoading(false);
+      },
+      () => {
+        setRuns([]);
+        setLoading(false);
+      }
+    );
     return unsubscribe;
   }, [user]);
 

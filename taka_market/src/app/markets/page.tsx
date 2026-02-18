@@ -4,11 +4,13 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useAuth } from "@/lib/hooks";
 import { Market } from "@/lib/types";
 
 const CATEGORIES = ["all", "sports", "politics", "entertainment", "crypto", "other"];
 
 export default function MarketsPage() {
+  const { user, loading: authLoading } = useAuth();
   const [markets, setMarkets] = useState<Market[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState("all");
@@ -16,6 +18,12 @@ export default function MarketsPage() {
   const [statusFilter, setStatusFilter] = useState("open");
 
   useEffect(() => {
+    if (!user) {
+      setMarkets([]);
+      setLoading(false);
+      return;
+    }
+
     const ref = collection(db, "markets");
     let q = query(ref, orderBy("createdAt", "desc"));
 
@@ -23,20 +31,58 @@ export default function MarketsPage() {
       q = query(ref, where("status", "==", statusFilter), orderBy("createdAt", "desc"));
     }
 
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const data = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Market));
-      setMarkets(data);
-      setLoading(false);
-    });
+    setLoading(true);
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => {
+        const data = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Market));
+        setMarkets(data);
+        setLoading(false);
+      },
+      () => {
+        setMarkets([]);
+        setLoading(false);
+      }
+    );
 
     return unsubscribe;
-  }, [statusFilter]);
+  }, [user, statusFilter]);
 
   const filtered = markets.filter((m) => {
     if (category !== "all" && m.category !== category) return false;
     if (search && !m.title.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
+
+  if (authLoading) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold">Prediction Markets</h1>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="bg-gray-900 rounded-xl h-48 animate-pulse border border-gray-800" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold">Prediction Markets</h1>
+        <div className="text-center py-16">
+          <p className="text-gray-400 mb-4">Sign in to browse and bet on prediction markets.</p>
+          <Link
+            href="/login"
+            className="bg-green-500 hover:bg-green-600 text-black font-medium px-6 py-3 rounded-lg transition inline-block"
+          >
+            Sign In
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

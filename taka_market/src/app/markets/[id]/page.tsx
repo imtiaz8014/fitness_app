@@ -32,22 +32,44 @@ export default function MarketDetailPage() {
   const [claimSuccess, setClaimSuccess] = useState("");
 
   useEffect(() => {
-    if (!id) return;
-    const unsubscribe = onSnapshot(doc(db, "markets", id), (snap) => {
-      if (snap.exists()) {
-        setMarket({ id: snap.id, ...snap.data() } as Market);
-      }
+    if (!id || !user) {
       setLoading(false);
-    });
+      return;
+    }
+    const unsubscribe = onSnapshot(
+      doc(db, "markets", id),
+      (snap) => {
+        if (snap.exists()) {
+          setMarket({ id: snap.id, ...snap.data() } as Market);
+        }
+        setLoading(false);
+      },
+      () => {
+        setLoading(false);
+      }
+    );
     return unsubscribe;
-  }, [id]);
+  }, [id, user]);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || !user) return;
     callFunction<MarketBet[]>("getMarketBets", { marketId: id }).then(setBets).catch(() => {});
-  }, [id]);
+  }, [id, user]);
 
   if (loading) return <div className="text-center py-16">Loading...</div>;
+  if (!user) {
+    return (
+      <div className="text-center py-16">
+        <p className="text-gray-400 mb-4">Sign in to view market details.</p>
+        <a
+          href="/login"
+          className="bg-green-500 hover:bg-green-600 text-black font-medium px-6 py-3 rounded-lg transition inline-block"
+        >
+          Sign In
+        </a>
+      </div>
+    );
+  }
   if (!market) return <div className="text-center py-16">Market not found</div>;
 
   const total = market.totalYesAmount + market.totalNoAmount;
