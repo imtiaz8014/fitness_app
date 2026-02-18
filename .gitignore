@@ -5,5 +5,5 @@ node_modules/
 .env.local
 
 # taka_admin
-taka_admin/node_modules/
-taka_admin/.next/
+taka_admin/.dart_tool/
+taka_admin/build/

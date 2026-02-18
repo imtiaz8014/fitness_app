@@ -6,6 +6,7 @@ const db = admin.firestore();
 interface GetMarketsData {
   status?: string;
   limit?: number;
+  groupId?: string;
 }
 
 export const getMarkets = functions.https.onCall(async (data, context) => {
@@ -22,6 +23,10 @@ export const getMarkets = functions.https.onCall(async (data, context) => {
 
   if (input.status) {
     q = q.where("status", "==", input.status);
+  }
+
+  if (input.groupId) {
+    q = q.where("groupId", "==", input.groupId);
   }
 
   q = q.orderBy("createdAt", "desc").limit(input.limit || 50);

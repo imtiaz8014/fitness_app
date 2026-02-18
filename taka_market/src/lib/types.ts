@@ -17,6 +17,8 @@ export interface Market {
   resolvedAt: Timestamp | null;
   createdAt: Timestamp;
   txHash?: string;
+  groupId?: string | null;
+  groupTitle?: string | null;
 }
 
 export interface Bet {

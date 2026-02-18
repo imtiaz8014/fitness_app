@@ -1,0 +1,170 @@
+{
+  "project_info": {
+    "project_number": "394154337369",
+    "project_id": "taka-wallet-app",
+    "storage_bucket": "taka-wallet-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:394154337369:android:b71f53a080440bb62c7d48",
+        "android_client_info": {
+          "package_name": "com.bdtcoin.taka_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "394154337369-243crpo480s54fttkbfamteht2rvj6jt.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAlqCYN_cvipQNQ0fvWqiNrEiZaXZHmXps"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "394154337369-243crpo480s54fttkbfamteht2rvj6jt.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "394154337369-j1oi4jrb0j5ebj48rls8dmpf101p5r26.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.bdtcoin.takaApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:394154337369:android:39067f05fa6ea9412c7d48",
+        "android_client_info": {
+          "package_name": "com.example.taka_admin"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "394154337369-kl64512o5cnj1l74qmghf4r78eq26n2c.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.taka_admin",
+            "certificate_hash": "baa1741f72944d6871e821c28908b0005d6882a3"
+          }
+        },
+        {
+          "client_id": "394154337369-243crpo480s54fttkbfamteht2rvj6jt.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAlqCYN_cvipQNQ0fvWqiNrEiZaXZHmXps"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "394154337369-243crpo480s54fttkbfamteht2rvj6jt.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "394154337369-j1oi4jrb0j5ebj48rls8dmpf101p5r26.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.bdtcoin.takaApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:394154337369:android:e975f0af41b104982c7d48",
+        "android_client_info": {
+          "package_name": "com.example.taka_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "394154337369-243crpo480s54fttkbfamteht2rvj6jt.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAlqCYN_cvipQNQ0fvWqiNrEiZaXZHmXps"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "394154337369-243crpo480s54fttkbfamteht2rvj6jt.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "394154337369-j1oi4jrb0j5ebj48rls8dmpf101p5r26.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.bdtcoin.takaApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:394154337369:android:5646377bb3e2cf802c7d48",
+        "android_client_info": {
+          "package_name": "com.taka.taka_run"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "394154337369-meha2bvhuov0p4pse5085cb1m39aocqt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.taka.taka_run",
+            "certificate_hash": "baa1741f72944d6871e821c28908b0005d6882a3"
+          }
+        },
+        {
+          "client_id": "394154337369-243crpo480s54fttkbfamteht2rvj6jt.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAlqCYN_cvipQNQ0fvWqiNrEiZaXZHmXps"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "394154337369-243crpo480s54fttkbfamteht2rvj6jt.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "394154337369-j1oi4jrb0j5ebj48rls8dmpf101p5r26.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.bdtcoin.takaApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

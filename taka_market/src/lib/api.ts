@@ -22,6 +22,13 @@ export const createMarket = (data: {
   deadline: string;
 }) => callFunction<{ marketId: string }>("createMarket", data);
 
+export const createMarketGroup = (data: {
+  groupTitle: string;
+  description: string;
+  category: string;
+  markets: { title: string; deadline: string }[];
+}) => callFunction<{ groupId: string; marketIds: string[] }>("createMarketGroup", data);
+
 export const resolveMarket = (marketId: string, outcome: boolean) =>
   callFunction<{ success: boolean }>("resolveMarket", { marketId, outcome });
 

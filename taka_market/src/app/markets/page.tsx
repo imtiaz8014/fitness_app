@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -21,6 +21,16 @@ function getTimeRemaining(deadline: Date): string {
   return `${mins}m left`;
 }
 
+interface GroupedEvent {
+  groupId: string;
+  groupTitle: string;
+  category: string;
+  description: string;
+  markets: Market[];
+  totalVolume: number;
+  latestCreatedAt: number;
+}
+
 export default function MarketsPage() {
   const { user, loading: authLoading } = useAuth();
   const [markets, setMarkets] = useState<Market[]>([]);
@@ -28,6 +38,7 @@ export default function MarketsPage() {
   const [category, setCategory] = useState("all");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("open");
+  const [sortBy, setSortBy] = useState<"recent" | "trending">("recent");
 
   useEffect(() => {
     if (!user) {
@@ -60,11 +71,89 @@ export default function MarketsPage() {
     return unsubscribe;
   }, [user, statusFilter]);
 
-  const filtered = markets.filter((m) => {
-    if (category !== "all" && m.category !== category) return false;
-    if (search && !m.title.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
+  // Separate markets into standalone and grouped
+  const { standaloneMarkets, groupedEvents } = useMemo(() => {
+    const standalone: Market[] = [];
+    const groupMap = new Map<string, GroupedEvent>();
+
+    for (const m of markets) {
+      if (m.groupId) {
+        const existing = groupMap.get(m.groupId);
+        if (existing) {
+          existing.markets.push(m);
+          existing.totalVolume += m.totalVolume;
+          const ts = m.createdAt?.seconds ?? 0;
+          if (ts > existing.latestCreatedAt) existing.latestCreatedAt = ts;
+        } else {
+          groupMap.set(m.groupId, {
+            groupId: m.groupId,
+            groupTitle: m.groupTitle || m.title,
+            category: m.category,
+            description: m.description,
+            markets: [m],
+            totalVolume: m.totalVolume,
+            latestCreatedAt: m.createdAt?.seconds ?? 0,
+          });
+        }
+      } else {
+        standalone.push(m);
+      }
+    }
+
+    // Sort sub-markets within each group by deadline
+    for (const g of groupMap.values()) {
+      g.markets.sort((a, b) => (a.deadline?.seconds ?? 0) - (b.deadline?.seconds ?? 0));
+    }
+
+    return {
+      standaloneMarkets: standalone,
+      groupedEvents: Array.from(groupMap.values()),
+    };
+  }, [markets]);
+
+  // Apply filters to standalone markets
+  const filteredStandalone = standaloneMarkets
+    .filter((m) => {
+      if (category !== "all" && m.category !== category) return false;
+      if (search && !m.title.toLowerCase().includes(search.toLowerCase())) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === "trending") return b.totalVolume - a.totalVolume;
+      return 0;
+    });
+
+  // Apply filters to grouped events
+  const filteredGroups = groupedEvents
+    .filter((g) => {
+      if (category !== "all" && g.category !== category) return false;
+      if (search && !g.groupTitle.toLowerCase().includes(search.toLowerCase())) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === "trending") return b.totalVolume - a.totalVolume;
+      return b.latestCreatedAt - a.latestCreatedAt;
+    });
+
+  // Interleave grouped events and standalone markets by creation time / volume
+  const allItems = useMemo(() => {
+    const items: ({ type: "group"; data: GroupedEvent } | { type: "market"; data: Market })[] = [];
+    for (const g of filteredGroups) items.push({ type: "group", data: g });
+    for (const m of filteredStandalone) items.push({ type: "market", data: m });
+
+    items.sort((a, b) => {
+      if (sortBy === "trending") {
+        const volA = a.type === "group" ? a.data.totalVolume : a.data.totalVolume;
+        const volB = b.type === "group" ? b.data.totalVolume : b.data.totalVolume;
+        return volB - volA;
+      }
+      const tsA = a.type === "group" ? a.data.latestCreatedAt : (a.data.createdAt?.seconds ?? 0);
+      const tsB = b.type === "group" ? b.data.latestCreatedAt : (b.data.createdAt?.seconds ?? 0);
+      return tsB - tsA;
+    });
+
+    return items;
+  }, [filteredGroups, filteredStandalone, sortBy]);
 
   if (authLoading) {
     return (
@@ -111,17 +200,29 @@ export default function MarketsPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2">
-        {["all", "open", "resolved", "cancelled"].map((s) => (
+        {(["trending", "all", "open", "resolved", "cancelled"] as const).map((s) => (
           <button
             key={s}
-            onClick={() => setStatusFilter(s)}
+            onClick={() => {
+              if (s === "trending") {
+                setSortBy("trending");
+                setStatusFilter("all");
+              } else {
+                setSortBy("recent");
+                setStatusFilter(s);
+              }
+            }}
             className={`px-4 py-1.5 rounded-full text-sm capitalize transition ${
-              statusFilter === s
+              s === "trending"
+                ? sortBy === "trending"
+                  ? "bg-orange-500 text-black font-medium"
+                  : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                : sortBy === "recent" && statusFilter === s
                 ? "bg-green-500 text-black font-medium"
                 : "bg-gray-800 text-gray-400 hover:bg-gray-700"
             }`}
           >
-            {s}
+            {s === "trending" ? "🔥 Trending" : s}
           </button>
         ))}
         <div className="w-px bg-gray-700 mx-2" />
@@ -147,18 +248,68 @@ export default function MarketsPage() {
             <div key={i} className="bg-gray-900 rounded-xl h-48 animate-pulse border border-gray-800" />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : allItems.length === 0 ? (
         <div className="text-center py-16 text-gray-500">
           No markets found.
         </div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.map((market) => (
-            <MarketCard key={market.id} market={market} />
-          ))}
+          {allItems.map((item) =>
+            item.type === "group" ? (
+              <GroupCard key={item.data.groupId} group={item.data} />
+            ) : (
+              <MarketCard key={item.data.id} market={item.data} />
+            )
+          )}
         </div>
       )}
     </div>
+  );
+}
+
+function GroupCard({ group }: { group: GroupedEvent }) {
+  return (
+    <Link href={`/events/${group.groupId}`}>
+      <div className="bg-gray-900 rounded-xl p-6 border border-purple-500/30 hover:border-purple-400/50 hover:shadow-lg hover:shadow-purple-500/5 hover:-translate-y-0.5 transition-all cursor-pointer h-full flex flex-col">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/30 font-medium">
+            {group.markets.length} outcomes
+          </span>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-gray-800 text-gray-400 capitalize">
+            {group.category}
+          </span>
+        </div>
+        <h3 className="font-semibold text-lg mb-3 flex-1">{group.groupTitle}</h3>
+
+        {/* Sub-market rows */}
+        <div className="space-y-2 mb-3">
+          {group.markets.slice(0, 3).map((m) => {
+            const total = m.totalYesAmount + m.totalNoAmount;
+            const yesPercent = total > 0 ? Math.round((m.totalYesAmount / total) * 100) : 50;
+            return (
+              <div key={m.id} className="flex items-center gap-2 text-sm">
+                <span className="flex-1 truncate text-gray-300">{m.title}</span>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <div className="w-16 h-1.5 bg-gray-800 rounded-full overflow-hidden flex">
+                    <div className="bg-green-500" style={{ width: `${yesPercent}%` }} />
+                    <div className="bg-red-500" style={{ width: `${100 - yesPercent}%` }} />
+                  </div>
+                  <span className="text-green-400 text-xs w-8 text-right">{yesPercent}%</span>
+                </div>
+              </div>
+            );
+          })}
+          {group.markets.length > 3 && (
+            <p className="text-xs text-gray-500">+{group.markets.length - 3} more outcomes</p>
+          )}
+        </div>
+
+        <div className="flex justify-between text-xs text-gray-500 pt-2 border-t border-gray-800">
+          <span>{group.totalVolume.toFixed(0)} TK total volume</span>
+          <span className="text-purple-400">View all →</span>
+        </div>
+      </div>
+    </Link>
   );
 }
 

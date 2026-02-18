@@ -10,6 +10,8 @@ interface CreateMarketData {
   category: string;
   imageUrl?: string;
   deadline: string; // ISO date string
+  groupId?: string | null;
+  groupTitle?: string | null;
 }
 
 export const createMarket = functions.https.onCall(async (data, context) => {
@@ -46,6 +48,8 @@ export const createMarket = functions.https.onCall(async (data, context) => {
     deadline: admin.firestore.Timestamp.fromDate(deadlineDate),
     resolvedAt: null,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    groupId: input.groupId || null,
+    groupTitle: input.groupTitle || null,
   });
 
   return {marketId: marketRef.id};

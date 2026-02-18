@@ -78,6 +78,9 @@ export default function MarketDetailPage() {
   const [commentText, setCommentText] = useState("");
   const [commentSubmitting, setCommentSubmitting] = useState(false);
 
+  // Sibling markets (for grouped events)
+  const [siblings, setSiblings] = useState<Market[]>([]);
+
   useEffect(() => {
     if (!id || !user) {
       setLoading(false);
@@ -102,6 +105,30 @@ export default function MarketDetailPage() {
     if (!id || !user) return;
     callFunction<MarketBet[]>("getMarketBets", { marketId: id }).then(setBets).catch(() => {});
   }, [id, user]);
+
+  // Fetch sibling markets when market has a groupId
+  useEffect(() => {
+    if (!market?.groupId || !user) {
+      setSiblings([]);
+      return;
+    }
+    const q = query(
+      collection(db, "markets"),
+      where("groupId", "==", market.groupId)
+    );
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => {
+        const data = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() } as Market))
+          .filter((m) => m.id !== id)
+          .sort((a, b) => (a.deadline?.seconds ?? 0) - (b.deadline?.seconds ?? 0));
+        setSiblings(data);
+      },
+      () => {}
+    );
+    return unsubscribe;
+  }, [market?.groupId, id, user]);
 
   // Real-time comments listener
   useEffect(() => {
@@ -217,9 +244,15 @@ export default function MarketDetailPage() {
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Header */}
       <div>
-        <button onClick={() => router.back()} className="text-gray-400 hover:text-white mb-4 inline-block">
-          &larr; Back to Markets
-        </button>
+        {market.groupId ? (
+          <Link href={`/events/${market.groupId}`} className="text-purple-400 hover:text-purple-300 mb-4 inline-block">
+            &larr; Back to Event
+          </Link>
+        ) : (
+          <button onClick={() => router.back()} className="text-gray-400 hover:text-white mb-4 inline-block">
+            &larr; Back to Markets
+          </button>
+        )}
         <div className="flex items-center gap-2 mb-2">
           <span className="text-xs px-2 py-0.5 rounded-full bg-gray-800 text-gray-400 capitalize">
             {market.category}
@@ -242,8 +275,18 @@ export default function MarketDetailPage() {
               Resolved: {market.resolution.toUpperCase()}
             </span>
           )}
+          {market.groupId && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/30">
+              Grouped Event
+            </span>
+          )}
         </div>
         <h1 className="text-3xl font-bold">{market.title}</h1>
+        {market.groupTitle && (
+          <p className="text-sm text-purple-400 mt-1">
+            Part of: <Link href={`/events/${market.groupId}`} className="hover:underline">{market.groupTitle}</Link>
+          </p>
+        )}
         <p className="text-gray-400 mt-2">{market.description}</p>
         <div className="flex items-center gap-3 mt-2 text-sm text-gray-500">
           <span>Volume: {total.toFixed(0)} TK</span>
@@ -436,31 +479,63 @@ export default function MarketDetailPage() {
           </div>
         </div>
 
-        {/* Recent Bets Sidebar */}
-        <div className="space-y-4">
-          <h2 className="font-semibold">Recent Bets</h2>
-          {bets.length === 0 ? (
-            <p className="text-gray-500 text-sm">No bets yet.</p>
-          ) : (
-            bets.map((bet) => (
-              <div
-                key={bet.id}
-                className="bg-gray-900 rounded-lg p-3 border border-gray-800 text-sm"
-              >
-                <div className="flex justify-between">
-                  <span className={bet.position === "yes" ? "text-green-400" : "text-red-400"}>
-                    {bet.position.toUpperCase()}
-                  </span>
-                  <span>{bet.amount.toFixed(1)} TK</span>
-                </div>
-                <div className="text-gray-500 text-xs mt-1">
-                  {bet.createdAt?.seconds
-                    ? new Date(bet.createdAt.seconds * 1000).toLocaleString()
-                    : ""}
-                </div>
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Related Outcomes (for grouped markets) */}
+          {siblings.length > 0 && (
+            <div>
+              <h2 className="font-semibold mb-3">Related Outcomes</h2>
+              <div className="space-y-2">
+                {siblings.map((s) => {
+                  const sTotal = s.totalYesAmount + s.totalNoAmount;
+                  const sYes = sTotal > 0 ? Math.round((s.totalYesAmount / sTotal) * 100) : 50;
+                  return (
+                    <Link key={s.id} href={`/markets/${s.id}`}>
+                      <div className="bg-gray-900 rounded-lg p-3 border border-gray-800 hover:border-purple-500/30 transition cursor-pointer">
+                        <p className="text-sm font-medium truncate mb-1.5">{s.title}</p>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden flex">
+                            <div className="bg-green-500" style={{ width: `${sYes}%` }} />
+                            <div className="bg-red-500" style={{ width: `${100 - sYes}%` }} />
+                          </div>
+                          <span className="text-green-400 text-xs">{sYes}%</span>
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
-            ))
+            </div>
           )}
+
+          {/* Recent Bets */}
+          <div>
+            <h2 className="font-semibold mb-3">Recent Bets</h2>
+            {bets.length === 0 ? (
+              <p className="text-gray-500 text-sm">No bets yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {bets.map((bet) => (
+                  <div
+                    key={bet.id}
+                    className="bg-gray-900 rounded-lg p-3 border border-gray-800 text-sm"
+                  >
+                    <div className="flex justify-between">
+                      <span className={bet.position === "yes" ? "text-green-400" : "text-red-400"}>
+                        {bet.position.toUpperCase()}
+                      </span>
+                      <span>{bet.amount.toFixed(1)} TK</span>
+                    </div>
+                    <div className="text-gray-500 text-xs mt-1">
+                      {bet.createdAt?.seconds
+                        ? new Date(bet.createdAt.seconds * 1000).toLocaleString()
+                        : ""}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

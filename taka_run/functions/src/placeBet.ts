@@ -10,6 +10,12 @@ interface PlaceBetData {
 }
 
 export const placeBet = functions.https.onCall(async (data, context) => {
+  functions.logger.info("placeBet called", {
+    hasAuth: !!context.auth,
+    authUid: context.auth?.uid,
+    data,
+  });
+
   if (!context.auth) {
     throw new functions.https.HttpsError(
       "unauthenticated",
@@ -36,6 +42,7 @@ export const placeBet = functions.https.onCall(async (data, context) => {
 
   const position: "yes" | "no" = input.isYes ? "yes" : "no";
 
+  try {
   const result = await db.runTransaction(async (tx) => {
     // Check market is open
     const marketRef = db.collection("markets").doc(input.marketId);
@@ -97,4 +104,8 @@ export const placeBet = functions.https.onCall(async (data, context) => {
   });
 
   return result;
+  } catch (err) {
+    functions.logger.error("placeBet error", { error: String(err), stack: (err as Error).stack });
+    throw err;
+  }
 });
