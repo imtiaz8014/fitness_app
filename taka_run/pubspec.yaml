@@ -1,0 +1,47 @@
+name: taka_run
+description: "TAKA Run - Run to earn TK coins"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # Firebase
+  firebase_core: ^3.12.1
+  firebase_auth: ^5.5.2
+  cloud_firestore: ^5.6.6
+  cloud_functions: ^5.3.4
+  firebase_messaging: ^15.2.5
+
+  # Authentication
+  google_sign_in: ^6.3.0
+
+  # Location & Maps
+  geolocator: ^13.0.2
+  google_maps_flutter: ^2.12.1
+
+  # State Management
+  flutter_bloc: ^9.1.0
+  equatable: ^2.0.5
+  get_it: ^8.0.3
+
+  # UI
+  fl_chart: ^0.70.2
+
+  # Utils
+  shared_preferences: ^2.5.3
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

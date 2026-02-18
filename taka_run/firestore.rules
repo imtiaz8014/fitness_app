@@ -1,0 +1,27 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users can only read their own profile
+    // Writes go through Cloud Functions (Admin SDK bypasses rules)
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // Users can only read their own runs
+    // Writes go through Cloud Functions (Admin SDK bypasses rules)
+    match /runs/{runId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow write: if false;
+
+      // GPS points subcollection
+      match /gpsPoints/{pointId} {
+        allow read: if request.auth != null
+          && get(/databases/$(database)/documents/runs/$(runId)).data.userId == request.auth.uid;
+        allow write: if false;
+      }
+    }
+  }
+}
