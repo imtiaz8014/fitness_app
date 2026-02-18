@@ -8,6 +8,28 @@ import { useAuth, useUserProfile } from "@/lib/hooks";
 import { Bet } from "@/lib/types";
 import Link from "next/link";
 
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-8 animate-pulse">
+      <div className="h-8 w-40 bg-gray-800 rounded" />
+      <div className="bg-gray-900 rounded-xl h-44 border border-gray-800" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="bg-gray-900 rounded-xl h-20 border border-gray-800" />
+        ))}
+      </div>
+      <div>
+        <div className="h-6 w-24 bg-gray-800 rounded mb-4" />
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-gray-900 rounded-lg h-16 border border-gray-800" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
@@ -39,7 +61,7 @@ export default function DashboardPage() {
     }
   }, [authLoading, user, router]);
 
-  if (authLoading || profileLoading) return <div className="text-center py-16">Loading...</div>;
+  if (authLoading || profileLoading) return <DashboardSkeleton />;
   if (!user) return null;
 
   const wonBets = bets.filter((b) => b.status === "won");
@@ -116,7 +138,7 @@ export default function DashboardPage() {
                     <span className={`text-sm font-bold ${bet.position === "yes" ? "text-green-400" : "text-red-400"}`}>
                       {bet.position.toUpperCase()}
                     </span>
-                    <span className="text-gray-400 text-sm ml-2">on market #{bet.marketId}</span>
+                    <span className="text-gray-400 text-sm ml-2">on market #{bet.marketId.slice(0, 8)}...</span>
                   </div>
                   <div className="text-right">
                     <p className="font-medium">{bet.amount.toFixed(1)} TK</p>

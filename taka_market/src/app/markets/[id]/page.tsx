@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, collection, query, where, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth, useUserProfile } from "@/lib/hooks";
-import { placeBet, claimWinnings, callFunction } from "@/lib/api";
-import { Market } from "@/lib/types";
+import { placeBet, claimWinnings, callFunction, addComment } from "@/lib/api";
+import { Market, Comment } from "@/lib/types";
+import Link from "next/link";
 
 interface MarketBet {
   id: string;
@@ -14,6 +15,46 @@ interface MarketBet {
   amount: number;
   status: string;
   createdAt: { seconds: number } | null;
+}
+
+function getTimeRemaining(deadline: Date): string {
+  const now = new Date();
+  const diff = deadline.getTime() - now.getTime();
+  if (diff <= 0) return "Ended";
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+  const mins = Math.floor((diff / (1000 * 60)) % 60);
+  if (days > 0) return `${days}d ${hours}h left`;
+  if (hours > 0) return `${hours}h ${mins}m left`;
+  return `${mins}m left`;
+}
+
+function DetailSkeleton() {
+  return (
+    <div className="max-w-4xl mx-auto space-y-8 animate-pulse">
+      <div>
+        <div className="h-4 w-32 bg-gray-800 rounded mb-4" />
+        <div className="flex gap-2 mb-2">
+          <div className="h-5 w-16 bg-gray-800 rounded-full" />
+          <div className="h-5 w-14 bg-gray-800 rounded-full" />
+        </div>
+        <div className="h-8 w-3/4 bg-gray-800 rounded mb-2" />
+        <div className="h-4 w-full bg-gray-800 rounded mb-1" />
+        <div className="h-4 w-2/3 bg-gray-800 rounded" />
+      </div>
+      <div className="grid md:grid-cols-3 gap-8">
+        <div className="md:col-span-2 space-y-6">
+          <div className="bg-gray-900 rounded-xl h-40 border border-gray-800" />
+          <div className="bg-gray-900 rounded-xl h-64 border border-gray-800" />
+        </div>
+        <div className="space-y-4">
+          <div className="h-6 w-24 bg-gray-800 rounded" />
+          <div className="bg-gray-900 rounded-lg h-16 border border-gray-800" />
+          <div className="bg-gray-900 rounded-lg h-16 border border-gray-800" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function MarketDetailPage() {
@@ -30,6 +71,12 @@ export default function MarketDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [claimSuccess, setClaimSuccess] = useState("");
+  const [betSuccess, setBetSuccess] = useState(false);
+
+  // Comments state
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentText, setCommentText] = useState("");
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
 
   useEffect(() => {
     if (!id || !user) {
@@ -56,7 +103,25 @@ export default function MarketDetailPage() {
     callFunction<MarketBet[]>("getMarketBets", { marketId: id }).then(setBets).catch(() => {});
   }, [id, user]);
 
-  if (loading) return <div className="text-center py-16">Loading...</div>;
+  // Real-time comments listener
+  useEffect(() => {
+    if (!id || !user) return;
+    const q = query(
+      collection(db, "comments"),
+      where("marketId", "==", id),
+      orderBy("createdAt", "asc")
+    );
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => {
+        setComments(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Comment)));
+      },
+      () => {}
+    );
+    return unsubscribe;
+  }, [id, user]);
+
+  if (loading) return <DetailSkeleton />;
   if (!user) {
     return (
       <div className="text-center py-16">
@@ -70,13 +135,29 @@ export default function MarketDetailPage() {
       </div>
     );
   }
-  if (!market) return <div className="text-center py-16">Market not found</div>;
+  if (!market) {
+    return (
+      <div className="text-center py-16">
+        <div className="text-5xl mb-4">🔍</div>
+        <h2 className="text-xl font-bold mb-2">Market Not Found</h2>
+        <p className="text-gray-400 mb-6">This market may have been removed or the link is incorrect.</p>
+        <Link
+          href="/markets"
+          className="bg-green-500 hover:bg-green-600 text-black font-medium px-6 py-3 rounded-lg transition inline-block"
+        >
+          Browse Markets
+        </Link>
+      </div>
+    );
+  }
 
   const total = market.totalYesAmount + market.totalNoAmount;
   const yesPercent = total > 0 ? Math.round((market.totalYesAmount / total) * 100) : 50;
   const noPercent = 100 - yesPercent;
   const deadline = new Date(market.deadline.seconds * 1000);
   const isOpen = market.status === "open" && deadline > new Date();
+  const timeLeft = getTimeRemaining(deadline);
+  const hoursLeft = (deadline.getTime() - Date.now()) / (1000 * 60 * 60);
 
   const potentialPayout = betAmount
     ? (() => {
@@ -94,9 +175,12 @@ export default function MarketDetailPage() {
     if (!user || !betAmount) return;
     setSubmitting(true);
     setError("");
+    setBetSuccess(false);
     try {
       await placeBet(id, betSide === "yes", parseFloat(betAmount));
       setBetAmount("");
+      setBetSuccess(true);
+      setTimeout(() => setBetSuccess(false), 4000);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to place bet");
     }
@@ -117,6 +201,18 @@ export default function MarketDetailPage() {
     setSubmitting(false);
   }
 
+  async function handleComment() {
+    if (!user || !commentText.trim()) return;
+    setCommentSubmitting(true);
+    try {
+      await addComment(id, commentText.trim());
+      setCommentText("");
+    } catch {
+      // Comment failed silently - user can retry
+    }
+    setCommentSubmitting(false);
+  }
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Header */}
@@ -129,12 +225,12 @@ export default function MarketDetailPage() {
             {market.category}
           </span>
           <span
-            className={`text-xs px-2 py-0.5 rounded-full ${
+            className={`text-xs px-2 py-0.5 rounded-full border ${
               market.status === "open"
-                ? "bg-green-500/20 text-green-400"
+                ? "bg-green-500/15 border-green-500/30 text-green-400"
                 : market.status === "resolved"
-                ? "bg-blue-500/20 text-blue-400"
-                : "bg-gray-700 text-gray-400"
+                ? "bg-blue-500/15 border-blue-500/30 text-blue-400"
+                : "bg-gray-700 border-gray-600 text-gray-400"
             }`}
           >
             {market.status}
@@ -149,10 +245,28 @@ export default function MarketDetailPage() {
         </div>
         <h1 className="text-3xl font-bold">{market.title}</h1>
         <p className="text-gray-400 mt-2">{market.description}</p>
-        <p className="text-sm text-gray-500 mt-2">
-          Deadline: {deadline.toLocaleString()} | Volume: {total.toFixed(0)} TK
-        </p>
+        <div className="flex items-center gap-3 mt-2 text-sm text-gray-500">
+          <span>Volume: {total.toFixed(0)} TK</span>
+          <span>|</span>
+          <span className={
+            hoursLeft <= 0 ? "text-gray-500" :
+            hoursLeft < 24 ? "text-yellow-400 font-medium" :
+            "text-gray-500"
+          }>
+            {timeLeft}
+          </span>
+        </div>
       </div>
+
+      {/* Bet success banner */}
+      {betSuccess && (
+        <div className="bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg p-4 text-sm flex items-center gap-2">
+          <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+          Bet placed successfully!
+        </div>
+      )}
 
       <div className="grid md:grid-cols-3 gap-8">
         {/* Odds + Bet Form */}
@@ -258,6 +372,68 @@ export default function MarketDetailPage() {
               {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
             </div>
           )}
+
+          {/* Discussion / Comments */}
+          <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+            <h2 className="font-semibold mb-4">
+              Discussion {comments.length > 0 && <span className="text-gray-500 font-normal">({comments.length})</span>}
+            </h2>
+
+            {/* Comment input */}
+            {user && (
+              <div className="flex gap-3 mb-6">
+                <div className="w-8 h-8 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-sm font-bold flex-shrink-0 mt-1">
+                  {(profile?.displayName || user.email || "U")[0].toUpperCase()}
+                </div>
+                <div className="flex-1">
+                  <textarea
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    placeholder="Share your thoughts..."
+                    maxLength={500}
+                    rows={2}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 focus:border-green-500 focus:outline-none resize-none text-sm"
+                  />
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-xs text-gray-600">{commentText.length}/500</span>
+                    <button
+                      onClick={handleComment}
+                      disabled={commentSubmitting || !commentText.trim()}
+                      className="bg-green-500 hover:bg-green-600 disabled:bg-gray-700 disabled:text-gray-500 text-black font-medium px-4 py-1.5 rounded-lg text-sm transition"
+                    >
+                      {commentSubmitting ? "Posting..." : "Post"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Comment list */}
+            {comments.length === 0 ? (
+              <p className="text-gray-500 text-sm text-center py-4">No comments yet. Be the first to share your thoughts!</p>
+            ) : (
+              <div className="space-y-4">
+                {comments.map((c) => (
+                  <div key={c.id} className="flex gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gray-800 text-gray-400 flex items-center justify-center text-sm font-bold flex-shrink-0">
+                      {c.displayName[0].toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm">{c.displayName}</span>
+                        <span className="text-xs text-gray-600">
+                          {c.createdAt?.seconds
+                            ? new Date(c.createdAt.seconds * 1000).toLocaleString()
+                            : "just now"}
+                        </span>
+                      </div>
+                      <p className="text-gray-300 text-sm mt-0.5">{c.text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Recent Bets Sidebar */}

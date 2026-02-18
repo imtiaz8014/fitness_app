@@ -9,6 +9,18 @@ import { Market } from "@/lib/types";
 
 const CATEGORIES = ["all", "sports", "politics", "entertainment", "crypto", "other"];
 
+function getTimeRemaining(deadline: Date): string {
+  const now = new Date();
+  const diff = deadline.getTime() - now.getTime();
+  if (diff <= 0) return "Ended";
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+  const mins = Math.floor((diff / (1000 * 60)) % 60);
+  if (days > 0) return `${days}d ${hours}h left`;
+  if (hours > 0) return `${hours}h ${mins}m left`;
+  return `${mins}m left`;
+}
+
 export default function MarketsPage() {
   const { user, loading: authLoading } = useAuth();
   const [markets, setMarkets] = useState<Market[]>([]);
@@ -155,28 +167,39 @@ function MarketCard({ market }: { market: Market }) {
   const yesPercent = total > 0 ? Math.round((market.totalYesAmount / total) * 100) : 50;
   const noPercent = 100 - yesPercent;
   const deadline = new Date(market.deadline.seconds * 1000);
-  const isExpired = deadline < new Date();
+  const timeLeft = getTimeRemaining(deadline);
+  const descPreview = market.description.length > 80
+    ? market.description.slice(0, 80) + "..."
+    : market.description;
 
   return (
     <Link href={`/markets/${market.id}`}>
-      <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 hover:border-gray-600 transition cursor-pointer h-full flex flex-col">
+      <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 hover:border-gray-600 hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5 transition-all cursor-pointer h-full flex flex-col">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-xs px-2 py-0.5 rounded-full bg-gray-800 text-gray-400 capitalize">
             {market.category}
           </span>
           <span
-            className={`text-xs px-2 py-0.5 rounded-full ${
+            className={`text-xs px-2 py-0.5 rounded-full border ${
               market.status === "open"
-                ? "bg-green-500/20 text-green-400"
+                ? "bg-green-500/15 border-green-500/30 text-green-400"
                 : market.status === "resolved"
-                ? "bg-blue-500/20 text-blue-400"
-                : "bg-gray-700 text-gray-400"
+                ? "bg-blue-500/15 border-blue-500/30 text-blue-400"
+                : "bg-gray-700 border-gray-600 text-gray-400"
             }`}
           >
             {market.status}
           </span>
+          {market.resolution && (
+            <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+              market.resolution === "yes" ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
+            }`}>
+              {market.resolution.toUpperCase()}
+            </span>
+          )}
         </div>
-        <h3 className="font-semibold text-lg mb-3 flex-1">{market.title}</h3>
+        <h3 className="font-semibold text-lg mb-1 flex-1">{market.title}</h3>
+        <p className="text-gray-500 text-sm mb-3">{descPreview}</p>
         {/* Odds Bar */}
         <div className="mb-3">
           <div className="flex justify-between text-sm mb-1">
@@ -196,7 +219,7 @@ function MarketCard({ market }: { market: Market }) {
         </div>
         <div className="flex justify-between text-xs text-gray-500">
           <span>{total.toFixed(0)} TK volume</span>
-          <span>{isExpired ? "Ended" : deadline.toLocaleDateString()}</span>
+          <span>{timeLeft}</span>
         </div>
       </div>
     </Link>

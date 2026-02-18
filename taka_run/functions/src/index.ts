@@ -14,3 +14,5 @@ export {getUserBets} from "./getUserBets";
 export {getMarkets} from "./getMarkets";
 export {getMarketBets} from "./getMarketBets";
 export {getLeaderboard} from "./getLeaderboard";
+export {addComment} from "./addComment";
+export {getPlatformStats} from "./getPlatformStats";

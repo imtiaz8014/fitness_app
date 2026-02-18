@@ -55,6 +55,15 @@ export interface RunRecord {
   createdAt: Timestamp;
 }
 
+export interface Comment {
+  id: string;
+  marketId: string;
+  userId: string;
+  displayName: string;
+  text: string;
+  createdAt: Timestamp;
+}
+
 export interface LeaderboardEntry {
   uid: string;
   displayName: string;

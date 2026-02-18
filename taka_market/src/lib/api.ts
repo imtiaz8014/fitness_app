@@ -44,6 +44,14 @@ export const claimWinnings = (marketId: string) =>
 export const getUserBets = (marketId?: string) =>
   callFunction<Bet[]>("getUserBets", { marketId });
 
+// Comments
+export const addComment = (marketId: string, text: string) =>
+  callFunction<{ commentId: string }>("addComment", { marketId, text });
+
+// Platform Stats
+export const getPlatformStats = () =>
+  callFunction<{ totalMarkets: number; totalVolume: number; activeUsers: number; tkDistributed: number }>("getPlatformStats");
+
 // Balance
 export const getBalance = () =>
   callFunction<{ tkBalance: number; totalDistance: number; totalRuns: number; walletAddress: string | null }>("getBalance");

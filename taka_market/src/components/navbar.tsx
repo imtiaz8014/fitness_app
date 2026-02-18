@@ -30,6 +30,8 @@ export function Navbar() {
   const { profile } = useUserProfile(user?.uid);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const displayInitial = (profile?.displayName || user?.email || "U")[0].toUpperCase();
+
   return (
     <nav className="border-b border-gray-800 bg-gray-950/80 backdrop-blur-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -44,7 +46,7 @@ export function Navbar() {
               <NavLink href="/leaderboard">Leaderboard</NavLink>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {loading ? (
               <div className="h-8 w-20 bg-gray-800 rounded animate-pulse" />
             ) : user ? (
@@ -54,13 +56,14 @@ export function Navbar() {
                     {(profile.tkBalance ?? 0).toFixed(2)} TK
                   </span>
                 )}
+                <div className="w-8 h-8 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-sm font-bold hidden sm:flex">
+                  {displayInitial}
+                </div>
                 <button
                   onClick={() => {
-                    signOut(auth).catch(() => {
-                      // Sign out failed silently - user can retry
-                    });
+                    signOut(auth).catch(() => {});
                   }}
-                  className="text-gray-400 hover:text-white text-sm hidden md:inline"
+                  className="text-gray-400 hover:text-white hover:bg-gray-800 text-sm hidden md:inline px-3 py-1.5 rounded-full transition"
                 >
                   Sign Out
                 </button>
@@ -120,7 +123,10 @@ export function Navbar() {
             Leaderboard
           </Link>
           {user && profile && (
-            <div className="pt-2 border-t border-gray-800">
+            <div className="pt-2 border-t border-gray-800 flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold">
+                {displayInitial}
+              </div>
               <span className="text-green-400 font-medium text-sm">
                 {(profile.tkBalance ?? 0).toFixed(2)} TK
               </span>
