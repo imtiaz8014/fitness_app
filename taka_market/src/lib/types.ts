@@ -49,7 +49,7 @@ export interface RunRecord {
   pace: number;
   tkEarned: number;
   status: "pending" | "validated" | "rejected";
-  rejectionReason?: string;
+  validationErrors?: string[];
   startTime: Timestamp;
   endTime: Timestamp;
   createdAt: Timestamp;

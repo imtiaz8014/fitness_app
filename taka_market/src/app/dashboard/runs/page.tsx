@@ -167,9 +167,9 @@ export default function RunsPage() {
                       +{run.tkEarned.toFixed(1)} TK
                     </p>
                   )}
-                  {run.status === "rejected" && run.rejectionReason && (
+                  {run.status === "rejected" && run.validationErrors && (
                     <p className="text-red-400 text-xs">
-                      {run.rejectionReason}
+                      {run.validationErrors.join("; ")}
                     </p>
                   )}
                 </div>

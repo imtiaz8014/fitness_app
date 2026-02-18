@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import '../../services/location/location_service.dart';
 
 class RunResult {
@@ -71,15 +72,15 @@ class FirebaseRunService {
     required int endTime,
   }) async {
     final user = _auth.currentUser;
-    print('[FirebaseRunService] submitRun called');
-    print('[FirebaseRunService] currentUser: ${user?.uid ?? "NULL"}');
-    print('[FirebaseRunService] isAnonymous: ${user?.isAnonymous}');
-    print('[FirebaseRunService] email: ${user?.email}');
+    debugPrint('[FirebaseRunService] submitRun called');
+    debugPrint('[FirebaseRunService] currentUser: ${user?.uid ?? "NULL"}');
+    debugPrint('[FirebaseRunService] isAnonymous: ${user?.isAnonymous}');
+    debugPrint('[FirebaseRunService] email: ${user?.email}');
     if (user == null) throw Exception('Not authenticated');
 
     // Verify token is fresh
     final token = await user.getIdToken(true);
-    print('[FirebaseRunService] idToken length: ${token?.length ?? 0}');
+    debugPrint('[FirebaseRunService] idToken length: ${token?.length ?? 0}');
 
     final result = await _functions.httpsCallable('submitRun').call({
       'gpsPoints': gpsPoints.map((p) => p.toJson()).toList(),

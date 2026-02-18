@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../injection_container.dart';
@@ -131,97 +132,99 @@ class _HomeView extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  // Simulate Run Button (for testing transactions)
-                  SizedBox(
-                    height: 48,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        final runBloc = sl<RunBloc>();
-                        runBloc.add(SimulateRun());
-                        showDialog(
-                          context: context,
-                          barrierDismissible: false,
-                          builder: (_) => BlocProvider.value(
-                            value: runBloc,
-                            child: BlocConsumer<RunBloc, RunState>(
-                              listener: (ctx, state) {
-                                if (state is RunCompleted || state is RunError) {
-                                  context.read<HomeBloc>().add(RefreshBalance());
-                                }
-                              },
-                              builder: (ctx, state) {
-                                if (state is RunSubmitting) {
-                                  return const AlertDialog(
-                                    title: Text('Simulating Run...'),
-                                    content: SizedBox(
-                                      height: 80,
-                                      child: Center(child: CircularProgressIndicator()),
-                                    ),
-                                  );
-                                }
-                                if (state is RunCompleted) {
-                                  final result = state.result;
-                                  return AlertDialog(
-                                    title: Text(result.validated ? 'Simulation Complete!' : 'Run Rejected'),
-                                    content: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          result.validated ? Icons.celebration : Icons.warning,
-                                          size: 48,
-                                          color: result.validated ? const Color(0xFF00C853) : Colors.orange,
+                  if (kDebugMode) ...[
+                    // Simulate Run Button (for testing transactions)
+                    SizedBox(
+                      height: 48,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          final runBloc = sl<RunBloc>();
+                          runBloc.add(SimulateRun());
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (_) => BlocProvider.value(
+                              value: runBloc,
+                              child: BlocConsumer<RunBloc, RunState>(
+                                listener: (ctx, state) {
+                                  if (state is RunCompleted || state is RunError) {
+                                    context.read<HomeBloc>().add(RefreshBalance());
+                                  }
+                                },
+                                builder: (ctx, state) {
+                                  if (state is RunSubmitting) {
+                                    return const AlertDialog(
+                                      title: Text('Simulating Run...'),
+                                      content: SizedBox(
+                                        height: 80,
+                                        child: Center(child: CircularProgressIndicator()),
+                                      ),
+                                    );
+                                  }
+                                  if (state is RunCompleted) {
+                                    final result = state.result;
+                                    return AlertDialog(
+                                      title: Text(result.validated ? 'Simulation Complete!' : 'Run Rejected'),
+                                      content: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            result.validated ? Icons.celebration : Icons.warning,
+                                            size: 48,
+                                            color: result.validated ? const Color(0xFF00C853) : Colors.orange,
+                                          ),
+                                          const SizedBox(height: 16),
+                                          if (result.validated)
+                                            Text(
+                                              '+${result.tkEarned.toStringAsFixed(2)} TK',
+                                              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF00C853)),
+                                            )
+                                          else
+                                            Text(result.errors.join('\n')),
+                                        ],
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.pop(ctx);
+                                            runBloc.close();
+                                          },
+                                          child: const Text('OK'),
                                         ),
-                                        const SizedBox(height: 16),
-                                        if (result.validated)
-                                          Text(
-                                            '+${result.tkEarned.toStringAsFixed(2)} TK',
-                                            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF00C853)),
-                                          )
-                                        else
-                                          Text(result.errors.join('\n')),
                                       ],
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () {
-                                          Navigator.pop(ctx);
-                                          runBloc.close();
-                                        },
-                                        child: const Text('OK'),
-                                      ),
-                                    ],
-                                  );
-                                }
-                                if (state is RunError) {
-                                  return AlertDialog(
-                                    title: const Text('Error'),
-                                    content: Text(state.message),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () {
-                                          Navigator.pop(ctx);
-                                          runBloc.close();
-                                        },
-                                        child: const Text('OK'),
-                                      ),
-                                    ],
-                                  );
-                                }
-                                return const SizedBox();
-                              },
+                                    );
+                                  }
+                                  if (state is RunError) {
+                                    return AlertDialog(
+                                      title: const Text('Error'),
+                                      content: Text(state.message),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.pop(ctx);
+                                            runBloc.close();
+                                          },
+                                          child: const Text('OK'),
+                                        ),
+                                      ],
+                                    );
+                                  }
+                                  return const SizedBox();
+                                },
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.science, size: 20, color: Colors.amber),
-                      label: const Text('Simulate Run (Test)', style: TextStyle(fontSize: 14, color: Colors.amber)),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.amber),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          );
+                        },
+                        icon: const Icon(Icons.science, size: 20, color: Colors.amber),
+                        label: const Text('Simulate Run (Test)', style: TextStyle(fontSize: 14, color: Colors.amber)),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.amber),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
+                    const SizedBox(height: 12),
+                  ],
                   // Start Run Button
                   SizedBox(
                     height: 64,

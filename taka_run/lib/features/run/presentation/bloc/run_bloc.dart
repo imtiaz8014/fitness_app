@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:equatable/equatable.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../services/location/location_service.dart';
 import '../../../../services/firebase/firebase_run_service.dart';
@@ -245,12 +246,12 @@ class RunBloc extends Bloc<RunEvent, RunState> {
       );
       emit(RunCompleted(result));
     } catch (e, st) {
-      print('[RunBloc] submitRun error: $e');
-      print('[RunBloc] error type: ${e.runtimeType}');
+      debugPrint('[RunBloc] submitRun error: $e');
+      debugPrint('[RunBloc] error type: ${e.runtimeType}');
       if (e is FirebaseException) {
-        print('[RunBloc] FirebaseException code: ${e.code}, message: ${e.message}, plugin: ${e.plugin}');
+        debugPrint('[RunBloc] FirebaseException code: ${e.code}, message: ${e.message}, plugin: ${e.plugin}');
       }
-      print('[RunBloc] stackTrace: $st');
+      debugPrint('[RunBloc] stackTrace: $st');
       emit(RunError(_mapRunError(e)));
     }
   }
@@ -284,12 +285,12 @@ class RunBloc extends Bloc<RunEvent, RunState> {
       );
       emit(RunCompleted(result));
     } catch (e, st) {
-      print('[RunBloc] simulateRun error: $e');
-      print('[RunBloc] error type: ${e.runtimeType}');
+      debugPrint('[RunBloc] simulateRun error: $e');
+      debugPrint('[RunBloc] error type: ${e.runtimeType}');
       if (e is FirebaseException) {
-        print('[RunBloc] FirebaseException code: ${e.code}, message: ${e.message}, plugin: ${e.plugin}');
+        debugPrint('[RunBloc] FirebaseException code: ${e.code}, message: ${e.message}, plugin: ${e.plugin}');
       }
-      print('[RunBloc] stackTrace: $st');
+      debugPrint('[RunBloc] stackTrace: $st');
       emit(RunError(_mapRunError(e)));
     }
   }

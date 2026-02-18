@@ -3,3 +3,7 @@ BDT_coin/
 node_modules/
 .env
 .env.local
+
+# taka_admin
+taka_admin/node_modules/
+taka_admin/.next/

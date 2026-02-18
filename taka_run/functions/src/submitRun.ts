@@ -59,6 +59,8 @@ export const submitRun = functions.https.onCall(async (data, context) => {
     tkEarned,
     status,
     validationErrors: validation.errors,
+    startTime: admin.firestore.Timestamp.fromMillis(runData.startTime),
+    endTime: admin.firestore.Timestamp.fromMillis(runData.endTime),
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 

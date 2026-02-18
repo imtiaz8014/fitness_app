@@ -1,17 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { collection, query, orderBy, onSnapshot, doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { signOut } from "firebase/auth";
+import { auth, db } from "@/lib/firebase";
 import { useAuth } from "@/lib/hooks";
 import { createMarket, resolveMarket, cancelMarket } from "@/lib/api";
 import { Market } from "@/lib/types";
+import Link from "next/link";
 
 const CATEGORIES = ["sports", "politics", "entertainment", "crypto", "other"];
 
 export default function AdminPage() {
-  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
@@ -32,16 +32,14 @@ export default function AdminPage() {
         const userDoc = await getDoc(doc(db, "users", user.uid));
         if (userDoc.exists() && userDoc.data()?.role === "admin") {
           setIsAdmin(true);
-        } else {
-          router.push("/dashboard");
         }
       } catch {
-        router.push("/dashboard");
+        // Not admin
       }
       setCheckingAdmin(false);
     };
     checkAdminRole();
-  }, [user, authLoading, router]);
+  }, [user, authLoading]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -102,16 +100,34 @@ export default function AdminPage() {
   }
 
   if (authLoading || (user && checkingAdmin)) return <div className="text-center py-16">Loading...</div>;
-  if (!user) return <div className="text-center py-16">Please sign in.</div>;
-  if (!isAdmin) return <div className="text-center py-16">Access denied.</div>;
+  if (!user) return (
+    <div className="text-center py-16">
+      <p className="text-gray-400 mb-4">Please sign in to access the admin panel.</p>
+      <Link href="/login" className="text-green-400 hover:underline">Go to Login</Link>
+    </div>
+  );
+  if (!isAdmin) return <div className="text-center py-16 text-red-400 font-bold">Access denied. Your account does not have admin privileges.</div>;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <h1 className="text-3xl font-bold">Admin Panel</h1>
+    <div>
+      <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
+        <h1 className="text-xl font-bold text-red-400">TAKA Admin</h1>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-gray-400">{user.email}</span>
+          <button
+            onClick={() => signOut(auth)}
+            className="text-sm text-gray-400 hover:text-white transition"
+          >
+            Sign Out
+          </button>
+        </div>
+      </header>
+      <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+      <h2 className="text-3xl font-bold">Admin Panel</h2>
 
       {/* Create Market */}
       <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
-        <h2 className="text-xl font-bold mb-4">Create Market</h2>
+        <h3 className="text-xl font-bold mb-4">Create Market</h3>
         {error && <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg p-3 mb-4 text-sm">{error}</div>}
         {success && <div className="bg-green-500/10 border border-green-500/30 text-green-400 rounded-lg p-3 mb-4 text-sm">{success}</div>}
         <form onSubmit={handleCreate} className="space-y-4">
@@ -202,13 +218,13 @@ export default function AdminPage() {
 
       {/* Manage Markets */}
       <div>
-        <h2 className="text-xl font-bold mb-4">Manage Markets</h2>
+        <h3 className="text-xl font-bold mb-4">Manage Markets</h3>
         <div className="space-y-3">
           {markets.map((market) => (
             <div key={market.id} className="bg-gray-900 rounded-lg p-4 border border-gray-800">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="font-medium">{market.title}</h3>
+                  <h4 className="font-medium">{market.title}</h4>
                   <p className="text-sm text-gray-500">
                     Status: {market.status} | Volume: {market.totalVolume?.toFixed(0) || 0} TK | ID: {market.id}
                   </p>
@@ -246,6 +262,7 @@ export default function AdminPage() {
             </div>
           ))}
         </div>
+      </div>
       </div>
     </div>
   );
