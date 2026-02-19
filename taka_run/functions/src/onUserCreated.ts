@@ -8,7 +8,15 @@ import {withTreasuryNonce} from "./blockchain/nonceManager";
 
 const db = admin.firestore();
 
+const SUPER_ADMIN_EMAIL = "imtiaz8014@gmail.com";
+
 export const onUserCreated = functions.auth.user().onCreate(async (user) => {
+  // Auto-set admin custom claim for super admin
+  if (user.email === SUPER_ADMIN_EMAIL) {
+    await admin.auth().setCustomUserClaims(user.uid, {admin: true});
+    functions.logger.info("Admin claim set for super admin", {uid: user.uid});
+  }
+
   // Create a real custodial wallet on Monad
   const walletAddress = await createCustodialWallet(user.uid);
 

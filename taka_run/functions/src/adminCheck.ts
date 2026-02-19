@@ -1,10 +1,10 @@
 import * as functions from "firebase-functions";
-import * as admin from "firebase-admin";
 
-const db = admin.firestore();
+const SUPER_ADMIN_EMAIL = "imtiaz8014@gmail.com";
 
 /**
- * Verifies the caller is authenticated and has admin role.
+ * Verifies the caller is authenticated and has admin custom claim.
+ * Falls back to checking the super admin email for bootstrapping.
  * Throws HttpsError if not.
  */
 export async function requireAdmin(
@@ -18,14 +18,15 @@ export async function requireAdmin(
   }
 
   const uid = context.auth.uid;
-  const userDoc = await db.collection("users").doc(uid).get();
+  const token = context.auth.token;
 
-  if (!userDoc.exists || userDoc.data()?.role !== "admin") {
-    throw new functions.https.HttpsError(
-      "permission-denied",
-      "Admin access required."
-    );
+  // Check custom claim first, fall back to super admin email
+  if (token.admin === true || token.email === SUPER_ADMIN_EMAIL) {
+    return uid;
   }
 
-  return uid;
+  throw new functions.https.HttpsError(
+    "permission-denied",
+    "Admin access required."
+  );
 }

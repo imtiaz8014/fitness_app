@@ -24,13 +24,23 @@ class MonitoringRepositoryImpl implements MonitoringRepository {
     );
 
     if (response.statusCode != 200) {
-      final body = jsonDecode(response.body);
-      final error = body['error'] ?? body;
-      throw Exception(error['message'] ?? 'Function call failed');
+      try {
+        final body = jsonDecode(response.body);
+        final error = body['error'] ?? body;
+        throw Exception(error['message'] ?? 'Function call failed');
+      } on FormatException {
+        throw Exception(
+            'Function "$name" returned status ${response.statusCode}. '
+            'Is it deployed?');
+      }
     }
 
-    final body = jsonDecode(response.body);
-    return body['result'] as Map<String, dynamic>;
+    try {
+      final body = jsonDecode(response.body);
+      return body['result'] as Map<String, dynamic>;
+    } on FormatException {
+      throw Exception('Invalid response from "$name"');
+    }
   }
 
   @override

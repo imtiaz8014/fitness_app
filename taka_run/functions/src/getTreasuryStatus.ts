@@ -4,6 +4,7 @@ import {ethers} from "ethers";
 import {getProvider} from "./blockchain/config";
 import {getTreasuryKey} from "./blockchain/walletUtils";
 import {getWalletFromKey, getTkContract} from "./blockchain/contracts";
+import {requireAdmin} from "./adminCheck";
 
 const db = admin.firestore();
 
@@ -17,21 +18,7 @@ const CRITICAL_GAS_THRESHOLD = ethers.parseEther("0.01");
 export const getTreasuryStatus = functions
   .runWith({timeoutSeconds: 60})
   .https.onCall(async (_data, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "You must be signed in."
-      );
-    }
-
-    // Verify admin role
-    const userDoc = await db.collection("users").doc(context.auth.uid).get();
-    if (!userDoc.exists || userDoc.data()?.role !== "admin") {
-      throw new functions.https.HttpsError(
-        "permission-denied",
-        "Admin access required."
-      );
-    }
+    await requireAdmin(context);
 
     // --- Treasury balances ---
     let treasuryAddress = "";

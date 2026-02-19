@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
 import '../../../../injection_container.dart' as di;
 import '../../../markets/presentation/bloc/market_bloc.dart';
 import '../../../markets/presentation/pages/admin_page.dart';
@@ -24,9 +27,35 @@ class _AdminShellState extends State<AdminShell> {
   @override
   void initState() {
     super.initState();
+    _bootstrapAdminClaim();
     _marketBloc = di.sl<MarketBloc>()
       ..add(CheckAdminAndLoadMarkets(widget.userId));
     _monitoringBloc = di.sl<MonitoringBloc>()..add(LoadTreasuryStatus());
+  }
+
+  /// Call setAdminClaim once to ensure the custom claim is set.
+  Future<void> _bootstrapAdminClaim() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      final tokenResult = await user.getIdTokenResult();
+      if (tokenResult.claims?['admin'] == true) return; // Already set
+
+      final token = await user.getIdToken();
+      await http.post(
+        Uri.parse(
+            'https://us-central1-taka-wallet-app.cloudfunctions.net/setAdminClaim'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({'data': {}}),
+      );
+      // Force token refresh to pick up new claim
+      await user.getIdToken(true);
+    } catch (_) {
+      // Non-critical — email fallback still works
+    }
   }
 
   @override

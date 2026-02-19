@@ -52,8 +52,15 @@ class MarketRepositoryImpl implements MarketRepository {
   @override
   Future<bool> isAdmin(String userId) async {
     try {
-      final doc = await _firestore.collection('users').doc(userId).get();
-      return doc.exists && doc.data()?['role'] == 'admin';
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return false;
+
+      // Check custom claim first
+      final tokenResult = await user.getIdTokenResult();
+      if (tokenResult.claims?['admin'] == true) return true;
+
+      // Fallback: check super admin email
+      return user.email == 'imtiaz8014@gmail.com';
     } catch (_) {
       return false;
     }
