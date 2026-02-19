@@ -4,9 +4,11 @@ import {requireAdmin} from "./adminCheck";
 import {getTreasuryKey, getUserPrivateKey} from "./blockchain/walletUtils";
 import {getWalletFromKey, getPredictionContract} from "./blockchain/contracts";
 import {getPredictionAddress} from "./blockchain/config";
+import {withTreasuryNonce} from "./blockchain/nonceManager";
 
 const db = admin.firestore();
 const FEE_RATE = 0.02; // 2% platform fee
+const MAX_INLINE_CLAIMS = 20;
 
 interface ResolveMarketData {
   marketId: string;
@@ -73,14 +75,12 @@ export const resolveMarket = functions
         const isWinner = bet.position === resolution;
 
         if (isWinner && winningPool > 0) {
-          // Proportional share of total pool minus fee
           const share = bet.amount / winningPool;
           const grossPayout = share * totalPool;
           const payout = grossPayout * (1 - FEE_RATE);
 
           tx.update(betDoc.ref, {status: "won", payout});
 
-          // Credit user balance
           const userRef = db.collection("users").doc(bet.userId);
           tx.set(
             userRef,
@@ -92,7 +92,6 @@ export const resolveMarket = functions
         }
       }
 
-      // Update market
       tx.update(marketRef, {
         status: "resolved",
         resolution,
@@ -108,13 +107,20 @@ export const resolveMarket = functions
       try {
         const treasuryKey = await getTreasuryKey();
         const treasuryWallet = getWalletFromKey(treasuryKey);
-        const prediction = getPredictionContract(treasuryWallet);
 
-        const resolveTx = await prediction.resolveMarket(
-          marketData.onChainId,
-          input.outcome
+        const resolveTx = await withTreasuryNonce(
+          treasuryWallet.address,
+          async (nonce) => {
+            const prediction = getPredictionContract(treasuryWallet);
+            const txResp = await prediction.resolveMarket(
+              marketData!.onChainId,
+              input.outcome,
+              {nonce}
+            );
+            await txResp.wait();
+            return txResp;
+          }
         );
-        await resolveTx.wait();
 
         await marketDoc.ref.update({resolveTxHash: resolveTx.hash});
 
@@ -123,44 +129,60 @@ export const resolveMarket = functions
           resolveTxHash: resolveTx.hash,
         });
 
-        // Step 3: Auto-claim for all winners
+        // Step 3: Auto-claim for winners (capped at MAX_INLINE_CLAIMS)
         const winningBets = await db
           .collection("bets")
           .where("marketId", "==", input.marketId)
           .where("status", "==", "won")
           .get();
 
-        const claimedUserIds = new Set<string>();
+        // Deduplicate by userId
+        const uniqueWinners: {userId: string; betDocs: FirebaseFirestore.QueryDocumentSnapshot[]}[] = [];
+        const seenUsers = new Set<string>();
         for (const betDoc of winningBets.docs) {
           const bet = betDoc.data();
-          if (claimedUserIds.has(bet.userId)) continue;
-          claimedUserIds.add(bet.userId);
+          if (seenUsers.has(bet.userId)) {
+            // Add to existing entry
+            const entry = uniqueWinners.find((w) => w.userId === bet.userId);
+            if (entry) entry.betDocs.push(betDoc);
+            continue;
+          }
+          seenUsers.add(bet.userId);
+          uniqueWinners.push({userId: bet.userId, betDocs: [betDoc]});
+        }
 
+        // Claim first MAX_INLINE_CLAIMS winners inline
+        const inlineClaims = uniqueWinners.slice(0, MAX_INLINE_CLAIMS);
+        const deferredClaims = uniqueWinners.slice(MAX_INLINE_CLAIMS);
+
+        for (const winner of inlineClaims) {
           try {
-            const userKey = await getUserPrivateKey(bet.userId);
+            const userKey = await getUserPrivateKey(winner.userId);
             const userWallet = getWalletFromKey(userKey);
             const userPrediction = getPredictionContract(userWallet);
-
-            const claimTx = await userPrediction.claimWinnings(marketData.onChainId);
+            const claimTx = await userPrediction.claimWinnings(marketData!.onChainId);
             await claimTx.wait();
 
-            // Update all bets for this user with claimTxHash
-            const userBets = winningBets.docs.filter(
-              (d) => d.data().userId === bet.userId
-            );
-            for (const ub of userBets) {
-              await ub.ref.update({claimTxHash: claimTx.hash});
+            for (const ub of winner.betDocs) {
+              await ub.ref.update({claimTxHash: claimTx.hash, claimStatus: "claimed"});
             }
-
-            functions.logger.info("Auto-claimed winnings on-chain", {
-              userId: bet.userId,
-              claimTxHash: claimTx.hash,
-            });
           } catch (err) {
             functions.logger.error("Auto-claim failed for user", {
-              userId: bet.userId,
+              userId: winner.userId,
               error: String(err),
             });
+          }
+        }
+
+        // Mark remaining winners as pending for retryBlockchainOps
+        if (deferredClaims.length > 0) {
+          functions.logger.info("Deferring claims for retryBlockchainOps", {
+            count: deferredClaims.length,
+          });
+          for (const winner of deferredClaims) {
+            for (const ub of winner.betDocs) {
+              await ub.ref.update({claimStatus: "pending"});
+            }
           }
         }
       } catch (err) {

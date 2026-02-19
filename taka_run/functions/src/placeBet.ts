@@ -146,11 +146,12 @@ export const placeBet = functions
         onChainId: marketData.onChainId,
       });
     } catch (err) {
-      // Firestore bet stands — syncBalances will correct drift
+      // Mark as pending so retryBlockchainOps picks it up
       await db.collection("bets").doc(result.betId).update({
-        blockchainStatus: "failed",
+        blockchainStatus: "pending",
+        retryCount: 0,
       });
-      functions.logger.error("On-chain bet failed", {
+      functions.logger.error("On-chain bet failed, will retry", {
         betId: result.betId,
         error: String(err),
       });

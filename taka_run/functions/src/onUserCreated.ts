@@ -4,6 +4,7 @@ import {ethers} from "ethers";
 import {Constants} from "./constants";
 import {createCustodialWallet, getTreasuryKey} from "./blockchain/walletUtils";
 import {getWalletFromKey, getTkContract} from "./blockchain/contracts";
+import {withTreasuryNonce} from "./blockchain/nonceManager";
 
 const db = admin.firestore();
 
@@ -25,22 +26,35 @@ export const onUserCreated = functions.auth.user().onCreate(async (user) => {
     {merge: true}
   );
 
-  // Transfer welcome bonus on-chain (fire-and-forget)
+  // Transfer welcome bonus on-chain with nonce management
   if (Constants.welcomeBonusTk > 0) {
     try {
       const treasuryKey = await getTreasuryKey();
       const treasuryWallet = getWalletFromKey(treasuryKey);
-      const tkContract = getTkContract(treasuryWallet);
       const amount = ethers.parseEther(Constants.welcomeBonusTk.toString());
-      const tx = await tkContract.transfer(walletAddress, amount);
-      await tx.wait();
+
+      const tx = await withTreasuryNonce(
+        treasuryWallet.address,
+        async (nonce) => {
+          const tkContract = getTkContract(treasuryWallet);
+          const txResp = await tkContract.transfer(walletAddress, amount, {nonce});
+          await txResp.wait();
+          return txResp;
+        }
+      );
+
       functions.logger.info("Welcome bonus sent on-chain", {
         userId: user.uid,
         txHash: tx.hash,
         amount: Constants.welcomeBonusTk,
       });
     } catch (err) {
-      functions.logger.error("Failed to send welcome bonus on-chain", {
+      // Mark for retry by retryBlockchainOps
+      await db.collection("users").doc(user.uid).update({
+        welcomeBonusPending: true,
+        welcomeBonusRetryCount: 0,
+      });
+      functions.logger.error("Failed to send welcome bonus on-chain, will retry", {
         userId: user.uid,
         error: String(err),
       });

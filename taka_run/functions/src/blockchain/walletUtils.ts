@@ -1,7 +1,9 @@
 import {ethers} from "ethers";
 import * as admin from "firebase-admin";
 import * as crypto from "crypto";
+import * as functions from "firebase-functions";
 import {getTkBalance} from "./contracts";
+import {getSecret} from "./secretManager";
 
 const db = admin.firestore();
 
@@ -9,9 +11,7 @@ const ENCRYPTION_ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 16;
 
 async function getEncryptionKey(): Promise<Buffer> {
-  const configDoc = await db.collection("config").doc("app").get();
-  const key = configDoc.data()?.walletEncryptionKey;
-  if (!key) throw new Error("Wallet encryption key not configured");
+  const key = await getSecret("walletEncryptionKey");
   return Buffer.from(key, "hex");
 }
 
@@ -71,6 +71,34 @@ export async function createCustodialWallet(
 }
 
 /**
+ * Migrates a legacy wallet that has a plaintext privateKey field.
+ * Re-encrypts the key and removes the plaintext field.
+ */
+async function migrateLegacyWallet(userId: string): Promise<void> {
+  const ref = db.collection("wallets").doc(userId);
+  const doc = await ref.get();
+  if (!doc.exists) return;
+
+  const data = doc.data()!;
+  if (!data.privateKey || data.encryptedPrivateKey) return;
+
+  try {
+    const encryptionKey = await getEncryptionKey();
+    const encryptedPrivateKey = encrypt(data.privateKey, encryptionKey);
+    await ref.update({
+      encryptedPrivateKey,
+      privateKey: admin.firestore.FieldValue.delete(),
+    });
+    functions.logger.info("migrateLegacyWallet: migrated wallet", {userId});
+  } catch (err) {
+    functions.logger.error("migrateLegacyWallet: migration failed", {
+      userId,
+      error: String(err),
+    });
+  }
+}
+
+/**
  * Get user's decrypted private key for server-side signing.
  */
 export async function getUserPrivateKey(userId: string): Promise<string> {
@@ -79,8 +107,9 @@ export async function getUserPrivateKey(userId: string): Promise<string> {
 
   const data = doc.data()!;
 
-  // Handle unencrypted legacy keys (pre-migration)
+  // Handle unencrypted legacy keys (pre-migration) — migrate on read
   if (data.privateKey && !data.encryptedPrivateKey) {
+    await migrateLegacyWallet(userId);
     return data.privateKey;
   }
 
@@ -98,13 +127,10 @@ export async function getUserWalletAddress(userId: string): Promise<string> {
 }
 
 /**
- * Get treasury wallet private key from config.
+ * Get treasury wallet private key from Secret Manager (with Firestore fallback).
  */
 export async function getTreasuryKey(): Promise<string> {
-  const configDoc = await db.collection("config").doc("app").get();
-  const key = configDoc.data()?.treasuryPrivateKey;
-  if (!key) throw new Error("Treasury key not configured");
-  return key;
+  return getSecret("treasuryPrivateKey");
 }
 
 /**

@@ -4,6 +4,7 @@ import {requireAdmin} from "./adminCheck";
 import {getTreasuryKey} from "./blockchain/walletUtils";
 import {getWalletFromKey, getPredictionContract} from "./blockchain/contracts";
 import {getPredictionAddress} from "./blockchain/config";
+import {withTreasuryNonce} from "./blockchain/nonceManager";
 
 const db = admin.firestore();
 
@@ -49,36 +50,42 @@ export const createMarket = functions
       try {
         const treasuryKey = await getTreasuryKey();
         const treasuryWallet = getWalletFromKey(treasuryKey);
-        const prediction = getPredictionContract(treasuryWallet);
 
-        const tx = await prediction.createMarket(
-          input.title,
-          input.description,
-          deadlineUnix
-        );
-        const receipt = await tx.wait();
+        const tx = await withTreasuryNonce(
+          treasuryWallet.address,
+          async (nonce) => {
+            const prediction = getPredictionContract(treasuryWallet);
+            const txResp = await prediction.createMarket(
+              input.title,
+              input.description,
+              deadlineUnix,
+              {nonce}
+            );
+            const receipt = await txResp.wait();
 
-        // Parse MarketCreated event to get onChainId
-        const event = receipt.logs
-          .map((log: {topics: string[]; data: string}) => {
-            try {
-              return prediction.interface.parseLog(log);
-            } catch {
-              return null;
+            // Parse MarketCreated event to get onChainId
+            const event = receipt.logs
+              .map((log: {topics: string[]; data: string}) => {
+                try {
+                  return prediction.interface.parseLog(log);
+                } catch {
+                  return null;
+                }
+              })
+              .find((e: {name: string} | null) => e?.name === "MarketCreated");
+
+            if (event) {
+              onChainId = Number(event.args.marketId);
             }
-          })
-          .find((e: {name: string} | null) => e?.name === "MarketCreated");
 
-        if (event) {
-          onChainId = Number(event.args.marketId);
-        }
+            return txResp;
+          }
+        );
+
         txHash = tx.hash;
         blockchainStatus = "confirmed";
 
-        functions.logger.info("Market created on-chain", {
-          onChainId,
-          txHash,
-        });
+        functions.logger.info("Market created on-chain", {onChainId, txHash});
       } catch (err) {
         functions.logger.error("On-chain market creation failed", {
           error: String(err),

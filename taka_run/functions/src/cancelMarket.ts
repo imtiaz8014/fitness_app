@@ -4,6 +4,7 @@ import {requireAdmin} from "./adminCheck";
 import {getTreasuryKey, getUserPrivateKey} from "./blockchain/walletUtils";
 import {getWalletFromKey, getPredictionContract} from "./blockchain/contracts";
 import {getPredictionAddress} from "./blockchain/config";
+import {withTreasuryNonce} from "./blockchain/nonceManager";
 
 const db = admin.firestore();
 
@@ -74,10 +75,16 @@ export const cancelMarket = functions
       try {
         const treasuryKey = await getTreasuryKey();
         const treasuryWallet = getWalletFromKey(treasuryKey);
-        const prediction = getPredictionContract(treasuryWallet);
 
-        const cancelTx = await prediction.cancelMarket(marketData.onChainId);
-        await cancelTx.wait();
+        const cancelTx = await withTreasuryNonce(
+          treasuryWallet.address,
+          async (nonce) => {
+            const prediction = getPredictionContract(treasuryWallet);
+            const txResp = await prediction.cancelMarket(marketData!.onChainId, {nonce});
+            await txResp.wait();
+            return txResp;
+          }
+        );
 
         await marketDoc.ref.update({resolveTxHash: cancelTx.hash});
 

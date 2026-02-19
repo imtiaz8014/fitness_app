@@ -1,4 +1,6 @@
 import {ethers} from "ethers";
+import * as functions from "firebase-functions";
+import * as admin from "firebase-admin";
 
 // Network config — Monad mainnet
 const MONAD_RPC = "https://rpc.monad.xyz";
@@ -8,6 +10,17 @@ const TK_CONTRACT = "0x16ce50D6143E2dD33df3Ab1E4089cB5f51540Dc9";
 // TakaPrediction mainnet address (deployed via BDT_coin/scripts/deploy-prediction.js)
 // Update this after running: node scripts/deploy-prediction.js --network=monadMainnet
 const PREDICTION_CONTRACT = process.env.PREDICTION_CONTRACT_MAINNET || "";
+
+// Validate address format (42-char hex starting with 0x)
+const ADDRESS_REGEX = /^0x[0-9a-fA-F]{40}$/;
+
+// Log warning at cold-start if no prediction address
+if (!PREDICTION_CONTRACT) {
+  functions.logger.warn(
+    "No PREDICTION_CONTRACT_MAINNET env var configured. " +
+    "On-chain prediction market operations will use Firestore fallback or be skipped."
+  );
+}
 
 export const EXPLORER_BASE_URL = "https://monadexplorer.com";
 
@@ -23,8 +36,50 @@ export function getTkAddress(): string {
   return TK_CONTRACT;
 }
 
+let predictionAddressCache: string | null = null;
+
 export function getPredictionAddress(): string {
-  return PREDICTION_CONTRACT;
+  if (predictionAddressCache !== null) return predictionAddressCache;
+
+  if (PREDICTION_CONTRACT && ADDRESS_REGEX.test(PREDICTION_CONTRACT)) {
+    predictionAddressCache = PREDICTION_CONTRACT;
+    return PREDICTION_CONTRACT;
+  }
+
+  if (PREDICTION_CONTRACT && !ADDRESS_REGEX.test(PREDICTION_CONTRACT)) {
+    functions.logger.error("Invalid PREDICTION_CONTRACT_MAINNET format", {
+      value: PREDICTION_CONTRACT,
+    });
+  }
+
+  return "";
+}
+
+/**
+ * Async version that falls back to Firestore if env var is empty/invalid.
+ */
+export async function getPredictionAddressAsync(): Promise<string> {
+  const envAddr = getPredictionAddress();
+  if (envAddr) return envAddr;
+
+  try {
+    const db = admin.firestore();
+    const configDoc = await db.collection("config").doc("app").get();
+    const addr = configDoc.data()?.predictionContractMainnet;
+    if (addr && ADDRESS_REGEX.test(addr)) {
+      predictionAddressCache = addr;
+      return addr;
+    }
+    if (addr) {
+      functions.logger.error("Invalid prediction address in Firestore", {value: addr});
+    }
+  } catch (err) {
+    functions.logger.error("Failed to read prediction address from Firestore", {
+      error: String(err),
+    });
+  }
+
+  return "";
 }
 
 export function getProvider(): ethers.JsonRpcProvider {

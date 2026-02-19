@@ -60,14 +60,32 @@ export const getBalance = functions.https.onCall(async (_data, context) => {
     }
   }
 
-  // Sync on-chain balance if cache is stale
+  // Sync on-chain balance if cache is stale, but skip if user has pending ops
   let tkBalance = data.tkBalance ?? 0;
   const lastSync = data.balanceSyncedAt?.toMillis?.() ?? 0;
   if (Date.now() - lastSync > BALANCE_STALE_MS && walletDoc.exists) {
-    try {
-      tkBalance = await syncUserBalance(uid);
-    } catch (err) {
-      functions.logger.error("Balance sync failed, using cached", {uid, error: String(err)});
+    // Check for pending blockchain operations before syncing
+    const pendingRuns = await db
+      .collection("runs")
+      .where("userId", "==", uid)
+      .where("blockchainStatus", "==", "pending")
+      .limit(1)
+      .get();
+    const pendingBets = await db
+      .collection("bets")
+      .where("userId", "==", uid)
+      .where("blockchainStatus", "==", "pending")
+      .limit(1)
+      .get();
+
+    const hasPending = !pendingRuns.empty || !pendingBets.empty;
+
+    if (!hasPending) {
+      try {
+        tkBalance = await syncUserBalance(uid);
+      } catch (err) {
+        functions.logger.error("Balance sync failed, using cached", {uid, error: String(err)});
+      }
     }
   }
 

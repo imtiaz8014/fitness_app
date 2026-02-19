@@ -5,6 +5,7 @@ import {Constants} from "./constants";
 import {validateRun, RunData} from "./validation";
 import {getUserWalletAddress, getTreasuryKey} from "./blockchain/walletUtils";
 import {getWalletFromKey, getTkContract} from "./blockchain/contracts";
+import {withTreasuryNonce} from "./blockchain/nonceManager";
 
 const db = admin.firestore();
 
@@ -93,15 +94,22 @@ export const submitRun = functions.https.onCall(async (data, context) => {
       {merge: true}
     );
 
-    // On-chain TK reward transfer (fire-and-forget pattern)
+    // On-chain TK reward transfer with nonce management
     try {
       const userAddress = await getUserWalletAddress(uid);
       const treasuryKey = await getTreasuryKey();
       const treasuryWallet = getWalletFromKey(treasuryKey);
-      const tkContract = getTkContract(treasuryWallet);
       const amount = ethers.parseEther(tkEarned.toString());
-      const tx = await tkContract.transfer(userAddress, amount);
-      await tx.wait();
+
+      const tx = await withTreasuryNonce(
+        treasuryWallet.address,
+        async (nonce) => {
+          const tkContract = getTkContract(treasuryWallet);
+          const txResp = await tkContract.transfer(userAddress, amount, {nonce});
+          await txResp.wait();
+          return txResp;
+        }
+      );
 
       await runRef.update({
         txHash: tx.hash,
@@ -116,8 +124,8 @@ export const submitRun = functions.https.onCall(async (data, context) => {
       });
     } catch (err) {
       // Blockchain failed — Firestore balance already updated
-      // retryBlockchainRewards will pick this up
-      await runRef.update({blockchainStatus: "pending"});
+      // retryBlockchainOps will pick this up
+      await runRef.update({blockchainStatus: "pending", retryCount: 0});
       functions.logger.error("On-chain run reward failed, will retry", {
         runId: runRef.id,
         userId: uid,

@@ -4,6 +4,7 @@ import {requireAdmin} from "./adminCheck";
 import {getTreasuryKey} from "./blockchain/walletUtils";
 import {getWalletFromKey, getPredictionContract} from "./blockchain/contracts";
 import {getPredictionAddress} from "./blockchain/config";
+import {withTreasuryNonce} from "./blockchain/nonceManager";
 
 const db = admin.firestore();
 
@@ -56,16 +57,14 @@ export const createMarketGroup = functions
       }
     }
 
-    // Try to create each sub-market on-chain
-    let treasuryWallet;
-    let prediction;
+    // Try to create each sub-market on-chain sequentially with nonce management
+    let treasuryWallet: ReturnType<typeof getWalletFromKey> | undefined;
     const hasBlockchain = !!getPredictionAddress();
 
     if (hasBlockchain) {
       try {
         const treasuryKey = await getTreasuryKey();
         treasuryWallet = getWalletFromKey(treasuryKey);
-        prediction = getPredictionContract(treasuryWallet);
       } catch (err) {
         functions.logger.error("Failed to initialize blockchain for group", {
           error: String(err),
@@ -82,29 +81,40 @@ export const createMarketGroup = functions
       let txHash: string | null = null;
       let blockchainStatus = hasBlockchain ? "pending" : "off-chain";
 
-      if (prediction) {
+      if (treasuryWallet) {
         try {
           const deadlineUnix = Math.floor(new Date(m.deadline).getTime() / 1000);
-          const tx = await prediction.createMarket(
-            m.title,
-            input.description,
-            deadlineUnix
-          );
-          const receipt = await tx.wait();
 
-          const event = receipt.logs
-            .map((log: {topics: string[]; data: string}) => {
-              try {
-                return prediction!.interface.parseLog(log);
-              } catch {
-                return null;
+          const tx = await withTreasuryNonce(
+            treasuryWallet.address,
+            async (nonce) => {
+              const prediction = getPredictionContract(treasuryWallet!);
+              const txResp = await prediction.createMarket(
+                m.title,
+                input.description,
+                deadlineUnix,
+                {nonce}
+              );
+              const receipt = await txResp.wait();
+
+              const event = receipt.logs
+                .map((log: {topics: string[]; data: string}) => {
+                  try {
+                    return prediction.interface.parseLog(log);
+                  } catch {
+                    return null;
+                  }
+                })
+                .find((e: {name: string} | null) => e?.name === "MarketCreated");
+
+              if (event) {
+                onChainId = Number(event.args.marketId);
               }
-            })
-            .find((e: {name: string} | null) => e?.name === "MarketCreated");
 
-          if (event) {
-            onChainId = Number(event.args.marketId);
-          }
+              return txResp;
+            }
+          );
+
           txHash = tx.hash;
           blockchainStatus = "confirmed";
         } catch (err) {
