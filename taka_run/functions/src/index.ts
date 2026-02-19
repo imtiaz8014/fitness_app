@@ -18,4 +18,6 @@ export {createMarketGroup} from "./createMarketGroup";
 export {addComment} from "./addComment";
 export {getPlatformStats} from "./getPlatformStats";
 export {syncBalances} from "./syncBalances";
-export {retryBlockchainRewards} from "./retryBlockchainRewards";
+export {retryBlockchainOps} from "./retryBlockchainOps";
+export {gasMonitor} from "./gasMonitor";
+export {getTreasuryStatus} from "./getTreasuryStatus";

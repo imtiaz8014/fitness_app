@@ -7,8 +7,7 @@ import 'firebase_options.dart';
 import 'injection_container.dart' as di;
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/pages/login_page.dart';
-import 'features/markets/presentation/bloc/market_bloc.dart';
-import 'features/markets/presentation/pages/admin_page.dart';
+import 'features/monitoring/presentation/pages/admin_shell.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,11 +35,7 @@ class TakaAdminApp extends StatelessWidget {
         home: BlocBuilder<AuthBloc, AuthState>(
           builder: (context, state) {
             if (state is Authenticated) {
-              return BlocProvider(
-                create: (_) => di.sl<MarketBloc>()
-                  ..add(CheckAdminAndLoadMarkets(state.userId)),
-                child: const AdminPage(),
-              );
+              return AdminShell(userId: state.userId);
             }
             if (state is Unauthenticated || state is AuthError) {
               return const LoginPage();
