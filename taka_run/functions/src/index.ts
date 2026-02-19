@@ -22,3 +22,4 @@ export {retryBlockchainOps} from "./retryBlockchainOps";
 export {gasMonitor} from "./gasMonitor";
 export {getTreasuryStatus} from "./getTreasuryStatus";
 export {setAdminClaim} from "./setAdminClaim";
+export {migrateMarketsOnChain} from "./migrateMarketsOnChain";

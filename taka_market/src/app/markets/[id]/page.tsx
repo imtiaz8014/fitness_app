@@ -7,6 +7,9 @@ import { db } from "@/lib/firebase";
 import { useAuth, useUserProfile } from "@/lib/hooks";
 import { placeBet, claimWinnings, callFunction, addComment } from "@/lib/api";
 import { Market, Comment } from "@/lib/types";
+import { PREDICTION_CONTRACT_ADDRESS } from "@/lib/blockchain";
+import VerifyOnChain from "@/components/VerifyOnChain";
+import OnChainActivity from "@/components/OnChainActivity";
 import Link from "next/link";
 
 const EXPLORER_BASE_URL = "https://monadexplorer.com";
@@ -419,6 +422,21 @@ export default function MarketDetailPage() {
             </div>
           )}
 
+          {/* On-Chain Activity */}
+          {market.onChainId != null ? (
+            <OnChainActivity onChainId={market.onChainId} />
+          ) : (
+            <div className="bg-gray-900 rounded-xl border border-gray-800 px-5 py-4 flex items-center gap-3">
+              <svg className="w-5 h-5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <p className="text-sm font-medium text-gray-400">On-Chain Activity</p>
+                <p className="text-xs text-gray-500">This market has not been recorded on the blockchain yet. On-chain verification will be available once migrated.</p>
+              </div>
+            </div>
+          )}
+
           {/* Discussion / Comments */}
           <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
             <h2 className="font-semibold mb-4">
@@ -512,58 +530,95 @@ export default function MarketDetailPage() {
           )}
 
           {/* On-Chain Info */}
-          {market.onChainId != null && (
-            <div>
-              <h2 className="font-semibold mb-3">On-Chain Info</h2>
-              <div className="bg-gray-900 rounded-lg p-4 border border-purple-500/30 space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Market ID</span>
-                  <span className="text-purple-400 font-mono">#{market.onChainId}</span>
+          <div>
+            <h2 className="font-semibold mb-3">On-Chain Info</h2>
+            {market.onChainId != null ? (
+              <>
+                <div className="bg-gray-900 rounded-lg p-4 border border-purple-500/30 space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Market ID</span>
+                    <span className="text-purple-400 font-mono">#{market.onChainId}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Status</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      market.blockchainStatus === "confirmed"
+                        ? "bg-green-500/15 text-green-400 border border-green-500/30"
+                        : market.blockchainStatus === "pending"
+                        ? "bg-yellow-500/15 text-yellow-400 border border-yellow-500/30"
+                        : "bg-gray-700 text-gray-400 border border-gray-600"
+                    }`}>
+                      {market.blockchainStatus || "off-chain"}
+                    </span>
+                  </div>
+                  {market.txHash && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400">Created</span>
+                      <a
+                        href={`${EXPLORER_BASE_URL}/tx/${market.txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-purple-400 hover:text-purple-300 font-mono text-xs truncate max-w-[120px]"
+                      >
+                        {market.txHash.slice(0, 10)}...
+                      </a>
+                    </div>
+                  )}
+                  {market.resolveTxHash && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400">Resolved</span>
+                      <a
+                        href={`${EXPLORER_BASE_URL}/tx/${market.resolveTxHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-purple-400 hover:text-purple-300 font-mono text-xs truncate max-w-[120px]"
+                      >
+                        {market.resolveTxHash.slice(0, 10)}...
+                      </a>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Contract</span>
+                    <a
+                      href={`${EXPLORER_BASE_URL}/address/${PREDICTION_CONTRACT_ADDRESS}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-purple-400 hover:text-purple-300 font-mono text-xs truncate max-w-[120px]"
+                    >
+                      {PREDICTION_CONTRACT_ADDRESS.slice(0, 10)}...
+                    </a>
+                  </div>
+                  <div className="text-xs text-gray-600 pt-1 border-t border-gray-800">
+                    Monad Mainnet
+                  </div>
                 </div>
+                <VerifyOnChain market={market} />
+              </>
+            ) : (
+              <div className="bg-gray-900 rounded-lg p-4 border border-gray-800 space-y-3 text-sm">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Status</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    market.blockchainStatus === "confirmed"
-                      ? "bg-green-500/15 text-green-400 border border-green-500/30"
-                      : market.blockchainStatus === "pending"
-                      ? "bg-yellow-500/15 text-yellow-400 border border-yellow-500/30"
-                      : "bg-gray-700 text-gray-400 border border-gray-600"
-                  }`}>
-                    {market.blockchainStatus || "off-chain"}
+                  <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-700 text-gray-400 border border-gray-600">
+                    off-chain
                   </span>
                 </div>
-                {market.txHash && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Created</span>
-                    <a
-                      href={`${EXPLORER_BASE_URL}/tx/${market.txHash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-purple-400 hover:text-purple-300 font-mono text-xs truncate max-w-[120px]"
-                    >
-                      {market.txHash.slice(0, 10)}...
-                    </a>
-                  </div>
-                )}
-                {market.resolveTxHash && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400">Resolved</span>
-                    <a
-                      href={`${EXPLORER_BASE_URL}/tx/${market.resolveTxHash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-purple-400 hover:text-purple-300 font-mono text-xs truncate max-w-[120px]"
-                    >
-                      {market.resolveTxHash.slice(0, 10)}...
-                    </a>
-                  </div>
-                )}
-                <div className="text-xs text-gray-600 pt-1 border-t border-gray-800">
-                  Monad Mainnet
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Contract</span>
+                  <a
+                    href={`${EXPLORER_BASE_URL}/address/${PREDICTION_CONTRACT_ADDRESS}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-purple-400 hover:text-purple-300 font-mono text-xs truncate max-w-[120px]"
+                  >
+                    {PREDICTION_CONTRACT_ADDRESS.slice(0, 10)}...
+                  </a>
+                </div>
+                <div className="text-xs text-gray-500 pt-2 border-t border-gray-800">
+                  This market is pending blockchain migration. Once migrated, you can verify all activity directly on Monad Mainnet.
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Recent Bets */}
           <div>
