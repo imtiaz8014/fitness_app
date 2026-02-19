@@ -18,5 +18,33 @@
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "taka-wallet-app",
+          "appId": "1:394154337369:android:5646377bb3e2cf802c7d48",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "taka-wallet-app",
+          "appId": "1:394154337369:ios:0e6305918146ecbc2c7d48",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "taka-wallet-app",
+          "configurations": {
+            "android": "1:394154337369:android:5646377bb3e2cf802c7d48",
+            "ios": "1:394154337369:ios:0e6305918146ecbc2c7d48"
+          }
+        }
+      }
+    }
   }
 }
