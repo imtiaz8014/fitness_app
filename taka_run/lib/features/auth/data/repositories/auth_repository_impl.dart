@@ -17,21 +17,6 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<void> signInWithEmail(String email, String password) async {
-    await _auth.signInWithEmailAndPassword(email: email, password: password);
-  }
-
-  @override
-  Future<void> signUpWithEmail(String email, String password, String displayName) async {
-    final credential = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-    await credential.user?.updateDisplayName(displayName);
-    // Wallet creation is handled by onUserCreated Cloud Function
-  }
-
-  @override
   Future<void> signInWithGoogle() async {
     final googleUser = await _googleSignIn.signIn();
     if (googleUser == null) throw Exception('Google sign-in cancelled');
@@ -42,11 +27,6 @@ class AuthRepositoryImpl implements AuthRepository {
       idToken: googleAuth.idToken,
     );
     await _auth.signInWithCredential(credential);
-  }
-
-  @override
-  Future<void> signInAnonymously() async {
-    await _auth.signInAnonymously();
   }
 
   @override

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../injection_container.dart';
 import '../bloc/home_bloc.dart';
+import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../run/presentation/pages/active_run_page.dart';
 import '../../../run/presentation/bloc/run_bloc.dart';
 import '../../../history/presentation/pages/history_page.dart';
@@ -52,7 +53,35 @@ class _HomeView extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
           if (state is HomeError) {
-            return Center(child: Text(state.message));
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.person_off, size: 48, color: Colors.grey),
+                    const SizedBox(height: 16),
+                    Text(
+                      state.message,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        context.read<AuthBloc>().add(SignOut());
+                      },
+                      icon: const Icon(Icons.logout),
+                      label: const Text('Sign Out'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
           }
           if (state is HomeLoaded) {
             final profile = state.profile;
