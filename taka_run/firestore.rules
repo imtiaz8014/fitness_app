@@ -29,6 +29,16 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Custodial wallets — Cloud Functions only (Admin SDK bypasses rules)
+    match /wallets/{userId} {
+      allow read, write: if false;
+    }
+
+    // App config — Cloud Functions only
+    match /config/{docId} {
+      allow read, write: if false;
+    }
+
     // Users can only read their own runs
     // Writes go through Cloud Functions (Admin SDK bypasses rules)
     match /runs/{runId} {

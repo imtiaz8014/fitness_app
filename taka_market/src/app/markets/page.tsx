@@ -341,6 +341,11 @@ function MarketCard({ market }: { market: Market }) {
           >
             {market.status}
           </span>
+          {market.onChainId != null && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/30 font-medium">
+              On-chain
+            </span>
+          )}
           {market.resolution && (
             <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
               market.resolution === "yes" ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"

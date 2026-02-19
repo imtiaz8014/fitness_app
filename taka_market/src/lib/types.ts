@@ -17,6 +17,8 @@ export interface Market {
   resolvedAt: Timestamp | null;
   createdAt: Timestamp;
   txHash?: string;
+  resolveTxHash?: string;
+  blockchainStatus?: "confirmed" | "pending" | "off-chain";
   groupId?: string | null;
   groupTitle?: string | null;
 }
@@ -30,6 +32,8 @@ export interface Bet {
   status: "active" | "won" | "lost" | "refunded";
   payout: number;
   txHash?: string;
+  claimTxHash?: string;
+  blockchainStatus?: "confirmed" | "pending" | "failed";
   createdAt: Timestamp;
 }
 

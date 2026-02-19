@@ -1,5 +1,9 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+import {ethers} from "ethers";
+import {getUserPrivateKey} from "./blockchain/walletUtils";
+import {getWalletFromKey, getTkContract, getPredictionContract} from "./blockchain/contracts";
+import {getPredictionAddress} from "./blockchain/config";
 
 const db = admin.firestore();
 
@@ -9,7 +13,9 @@ interface PlaceBetData {
   amount: number;
 }
 
-export const placeBet = functions.https.onCall(async (data, context) => {
+export const placeBet = functions
+  .runWith({timeoutSeconds: 120})
+  .https.onCall(async (data, context) => {
   functions.logger.info("placeBet called", {
     hasAuth: !!context.auth,
     authUid: context.auth?.uid,
@@ -102,6 +108,54 @@ export const placeBet = functions.https.onCall(async (data, context) => {
 
     return {betId: betRef.id};
   });
+
+  // Step 2: On-chain bet if market has onChainId
+  const marketSnap = await db.collection("markets").doc(input.marketId).get();
+  const marketData = marketSnap.data();
+
+  if (marketData?.onChainId != null && getPredictionAddress()) {
+    try {
+      const userKey = await getUserPrivateKey(uid);
+      const userWallet = getWalletFromKey(userKey);
+      const tkContract = getTkContract(userWallet);
+      const predictionContract = getPredictionContract(userWallet);
+      const predictionAddr = getPredictionAddress();
+      const amountWei = ethers.parseEther(input.amount.toString());
+
+      // Approve TK spending
+      const approveTx = await tkContract.approve(predictionAddr, amountWei);
+      await approveTx.wait();
+
+      // Place bet on-chain
+      const betTx = await predictionContract.placeBet(
+        marketData.onChainId,
+        input.isYes,
+        amountWei
+      );
+      await betTx.wait();
+
+      // Update bet doc with tx hash
+      await db.collection("bets").doc(result.betId).update({
+        txHash: betTx.hash,
+        blockchainStatus: "confirmed",
+      });
+
+      functions.logger.info("Bet placed on-chain", {
+        betId: result.betId,
+        txHash: betTx.hash,
+        onChainId: marketData.onChainId,
+      });
+    } catch (err) {
+      // Firestore bet stands — syncBalances will correct drift
+      await db.collection("bets").doc(result.betId).update({
+        blockchainStatus: "failed",
+      });
+      functions.logger.error("On-chain bet failed", {
+        betId: result.betId,
+        error: String(err),
+      });
+    }
+  }
 
   return result;
   } catch (err) {

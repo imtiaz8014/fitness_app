@@ -20,7 +20,7 @@ export const createMarket = (data: {
   category: string;
   imageUrl?: string;
   deadline: string;
-}) => callFunction<{ marketId: string }>("createMarket", data);
+}) => callFunction<{ marketId: string; onChainId?: number; txHash?: string }>("createMarket", data);
 
 export const createMarketGroup = (data: {
   groupTitle: string;
@@ -37,14 +37,14 @@ export const cancelMarket = (marketId: string) =>
 
 // Bet APIs
 export const placeBet = (marketId: string, isYes: boolean, amount: number) =>
-  callFunction<{ betId: string }>("placeBet", {
+  callFunction<{ betId: string; txHash?: string }>("placeBet", {
     marketId,
     isYes,
     amount,
   });
 
 export const claimWinnings = (marketId: string) =>
-  callFunction<{ payout: number }>("claimWinnings", {
+  callFunction<{ payout: number; txHash?: string }>("claimWinnings", {
     marketId,
   });
 

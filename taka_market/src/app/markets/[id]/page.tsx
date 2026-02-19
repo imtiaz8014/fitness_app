@@ -9,11 +9,14 @@ import { placeBet, claimWinnings, callFunction, addComment } from "@/lib/api";
 import { Market, Comment } from "@/lib/types";
 import Link from "next/link";
 
+const EXPLORER_BASE_URL = "https://monadexplorer.com";
+
 interface MarketBet {
   id: string;
   position: "yes" | "no";
   amount: number;
   status: string;
+  txHash?: string;
   createdAt: { seconds: number } | null;
 }
 
@@ -508,6 +511,60 @@ export default function MarketDetailPage() {
             </div>
           )}
 
+          {/* On-Chain Info */}
+          {market.onChainId != null && (
+            <div>
+              <h2 className="font-semibold mb-3">On-Chain Info</h2>
+              <div className="bg-gray-900 rounded-lg p-4 border border-purple-500/30 space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Market ID</span>
+                  <span className="text-purple-400 font-mono">#{market.onChainId}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">Status</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    market.blockchainStatus === "confirmed"
+                      ? "bg-green-500/15 text-green-400 border border-green-500/30"
+                      : market.blockchainStatus === "pending"
+                      ? "bg-yellow-500/15 text-yellow-400 border border-yellow-500/30"
+                      : "bg-gray-700 text-gray-400 border border-gray-600"
+                  }`}>
+                    {market.blockchainStatus || "off-chain"}
+                  </span>
+                </div>
+                {market.txHash && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Created</span>
+                    <a
+                      href={`${EXPLORER_BASE_URL}/tx/${market.txHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-purple-400 hover:text-purple-300 font-mono text-xs truncate max-w-[120px]"
+                    >
+                      {market.txHash.slice(0, 10)}...
+                    </a>
+                  </div>
+                )}
+                {market.resolveTxHash && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Resolved</span>
+                    <a
+                      href={`${EXPLORER_BASE_URL}/tx/${market.resolveTxHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-purple-400 hover:text-purple-300 font-mono text-xs truncate max-w-[120px]"
+                    >
+                      {market.resolveTxHash.slice(0, 10)}...
+                    </a>
+                  </div>
+                )}
+                <div className="text-xs text-gray-600 pt-1 border-t border-gray-800">
+                  Monad Mainnet
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Recent Bets */}
           <div>
             <h2 className="font-semibold mb-3">Recent Bets</h2>
@@ -524,7 +581,22 @@ export default function MarketDetailPage() {
                       <span className={bet.position === "yes" ? "text-green-400" : "text-red-400"}>
                         {bet.position.toUpperCase()}
                       </span>
-                      <span>{bet.amount.toFixed(1)} TK</span>
+                      <div className="flex items-center gap-2">
+                        <span>{bet.amount.toFixed(1)} TK</span>
+                        {bet.txHash && (
+                          <a
+                            href={`${EXPLORER_BASE_URL}/tx/${bet.txHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-purple-400 hover:text-purple-300"
+                            title="View on explorer"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                          </a>
+                        )}
+                      </div>
                     </div>
                     <div className="text-gray-500 text-xs mt-1">
                       {bet.createdAt?.seconds

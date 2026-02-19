@@ -1,7 +1,10 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+import {ethers} from "ethers";
 import {Constants} from "./constants";
 import {validateRun, RunData} from "./validation";
+import {getUserWalletAddress, getTreasuryKey} from "./blockchain/walletUtils";
+import {getWalletFromKey, getTkContract} from "./blockchain/contracts";
 
 const db = admin.firestore();
 
@@ -78,7 +81,7 @@ export const submitRun = functions.https.onCall(async (data, context) => {
     }
   }
 
-  // If validated, update user stats
+  // If validated, update user stats (optimistic Firestore update)
   if (validation.valid) {
     const userRef = db.collection("users").doc(uid);
     await userRef.set(
@@ -89,6 +92,38 @@ export const submitRun = functions.https.onCall(async (data, context) => {
       },
       {merge: true}
     );
+
+    // On-chain TK reward transfer (fire-and-forget pattern)
+    try {
+      const userAddress = await getUserWalletAddress(uid);
+      const treasuryKey = await getTreasuryKey();
+      const treasuryWallet = getWalletFromKey(treasuryKey);
+      const tkContract = getTkContract(treasuryWallet);
+      const amount = ethers.parseEther(tkEarned.toString());
+      const tx = await tkContract.transfer(userAddress, amount);
+      await tx.wait();
+
+      await runRef.update({
+        txHash: tx.hash,
+        blockchainStatus: "confirmed",
+      });
+
+      functions.logger.info("Run reward sent on-chain", {
+        runId: runRef.id,
+        userId: uid,
+        txHash: tx.hash,
+        tkEarned,
+      });
+    } catch (err) {
+      // Blockchain failed — Firestore balance already updated
+      // retryBlockchainRewards will pick this up
+      await runRef.update({blockchainStatus: "pending"});
+      functions.logger.error("On-chain run reward failed, will retry", {
+        runId: runRef.id,
+        userId: uid,
+        error: String(err),
+      });
+    }
   }
 
   // Return result matching RunResult.fromMap() in firebase_run_service.dart

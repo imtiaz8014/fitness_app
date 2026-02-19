@@ -1,6 +1,9 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import {requireAdmin} from "./adminCheck";
+import {getTreasuryKey} from "./blockchain/walletUtils";
+import {getWalletFromKey, getPredictionContract} from "./blockchain/contracts";
+import {getPredictionAddress} from "./blockchain/config";
 
 const db = admin.firestore();
 
@@ -16,8 +19,9 @@ interface CreateMarketGroupData {
   markets: MarketOutcome[];
 }
 
-export const createMarketGroup = functions.https.onCall(
-  async (data, context) => {
+export const createMarketGroup = functions
+  .runWith({timeoutSeconds: 300})
+  .https.onCall(async (data, context) => {
     const uid = await requireAdmin(context);
     const input = data as CreateMarketGroupData;
 
@@ -52,11 +56,65 @@ export const createMarketGroup = functions.https.onCall(
       }
     }
 
+    // Try to create each sub-market on-chain
+    let treasuryWallet;
+    let prediction;
+    const hasBlockchain = !!getPredictionAddress();
+
+    if (hasBlockchain) {
+      try {
+        const treasuryKey = await getTreasuryKey();
+        treasuryWallet = getWalletFromKey(treasuryKey);
+        prediction = getPredictionContract(treasuryWallet);
+      } catch (err) {
+        functions.logger.error("Failed to initialize blockchain for group", {
+          error: String(err),
+        });
+      }
+    }
+
     const groupId = db.collection("markets").doc().id;
     const batch = db.batch();
     const marketIds: string[] = [];
 
     for (const m of input.markets) {
+      let onChainId: number | null = null;
+      let txHash: string | null = null;
+      let blockchainStatus = hasBlockchain ? "pending" : "off-chain";
+
+      if (prediction) {
+        try {
+          const deadlineUnix = Math.floor(new Date(m.deadline).getTime() / 1000);
+          const tx = await prediction.createMarket(
+            m.title,
+            input.description,
+            deadlineUnix
+          );
+          const receipt = await tx.wait();
+
+          const event = receipt.logs
+            .map((log: {topics: string[]; data: string}) => {
+              try {
+                return prediction!.interface.parseLog(log);
+              } catch {
+                return null;
+              }
+            })
+            .find((e: {name: string} | null) => e?.name === "MarketCreated");
+
+          if (event) {
+            onChainId = Number(event.args.marketId);
+          }
+          txHash = tx.hash;
+          blockchainStatus = "confirmed";
+        } catch (err) {
+          functions.logger.error("On-chain group sub-market creation failed", {
+            title: m.title,
+            error: String(err),
+          });
+        }
+      }
+
       const ref = db.collection("markets").doc();
       marketIds.push(ref.id);
       batch.set(ref, {
@@ -75,10 +133,12 @@ export const createMarketGroup = functions.https.onCall(
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         groupId,
         groupTitle: input.groupTitle,
+        onChainId,
+        txHash,
+        blockchainStatus,
       });
     }
 
     await batch.commit();
     return {groupId, marketIds};
-  }
-);
+  });
